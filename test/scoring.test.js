@@ -119,13 +119,20 @@ test('comboEval: silent through the note breaks', () => {
   const r = S.comboEval(N, cf(N, () => 0));
   assert.ok(!r.hit); assert.strictEqual(r.reason, 'silent');
 });
-test('comboEval: sustained wrong pitch breaks (even a semitone-and-a-half off)', () => {
-  assert.ok(!S.comboEval(N, cf(N, () => hz(63))).hit);
-  assert.ok(!S.comboEval(N, cf(N, () => hz(61.8))).hit);
+test('comboEval (timing rule): a wrong pitch sung on time keeps the streak, but still scores a Miss', () => {
+  const f = cf(N, () => hz(63));
+  assert.ok(S.comboEval(N, f).hit);
+  assert.strictEqual(S.scoreNote(N, f.map(x => ({ t: x.t, f: x.f }))).rating, 'Miss');   // scoring untouched
 });
-test('comboEval: mostly unhit note (hit < 45% of its length) breaks, 60% hit keeps', () => {
-  assert.ok(!S.comboEval(N, cf(N, t => (t >= N.t && t < N.t + 0.2) ? hz(60) : (t < N.t + N.d && t >= N.t ? hz(64) : 0))).hit);
-  assert.ok(S.comboEval(N, cf(N, t => (t >= N.t && t < N.t + 0.4) ? hz(60) : (t < N.t + N.d && t >= N.t ? hz(64) : 0))).hit);
+test('comboEval: voiced only 20% of the note, or only outside its time window, breaks', () => {
+  assert.ok(!S.comboEval(N, cf(N, t => (t >= N.t - 0.3 && t < N.t - 0.12) ? hz(60) : 0)).hit);          // sung entirely before the window
+  assert.ok(!S.comboEval(N, cf(N, t => (t >= N.t && t < N.t + 0.1) ? hz(60) : 0)).hit);                  // 17% of the note
+  assert.ok(S.comboEval(N, cf(N, t => (t >= N.t + 0.05 && t < N.t + 0.5) ? hz(66) : 0)).hit);            // late/early still counts, any pitch
+});
+test('comboEval: a skipped note between two sung notes breaks (neighbours cannot cover it)', () => {
+  const a = { t: 0, d: 0.5, midi: 60 }, b = { t: 0.5, d: 0.3, midi: 62 }, c = { t: 0.8, d: 0.5, midi: 64 };
+  const fr = []; for (let t = 0; t < 1.5; t += 0.0107) fr.push({ t, f: (t < 0.5 || (t >= 0.8 && t < 1.3)) ? hz(60) : 0, c: 0.95 });
+  assert.ok(!S.comboEval(b, fr).hit);
 });
 test('comboEval: an octave-up singer still matches', () => {
   assert.ok(S.comboEval(N, cf(N, t => (t >= N.t && t <= N.t + N.d) ? hz(72) : 0)).hit);

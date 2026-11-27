@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var CFG = window.KARAOKE_CONFIG;
-  var BUILD = 'v13.15';
+  var BUILD = 'v13.15.1';
   var DEV = window.KaraokeDev = { overlay: true, tiles: true, feedback: true, lyrics: true, hud: true, bg: true };
   var S = window.KaraokeScoring;
   var $ = function (id) { return document.getElementById(id); };
@@ -921,7 +921,7 @@
     var sc = G.scorers[s];
     if (!G.multi) {
       if (DEV.hud) $('score').textContent = sc.liveScore();
-      $('combo').textContent = sc.combo > 1 ? sc.combo + ' note combo' + (G.savedAt && performance.now() - G.savedAt < 1500 ? ' \u00b7 saved!' : '') : '';
+      $('combo').textContent = sc.combo > 1 ? sc.combo + ' note combo' + (G.savedAt && performance.now() - G.savedAt < 1500 ? ' \u00b7 on time' : '') : '';
       return;
     }
     var v = sc.liveScore();
@@ -1591,9 +1591,9 @@
         var gi = G.idx[sl][d.index], pb = G.best[gi];
         if (!pb || RANK[d.rating] > RANK[pb.rating]) { G.best[gi] = d; if (DEV.tiles) lane.markScored(gi, d); }
         if (!DEV.feedback) return;
-        if (d.saved) G.savedAt = performance.now();   // v13.15: this note was a Miss on score, but it was close enough to keep the combo
-        if (G.multi) flashPlayer(sl, d.saved ? 'Saved' : d.rating, d.saved ? 'Good' : ''); else { if (d.saved) { showFeedback('Good'); singerTag('Good', 'SAVED'); } else { showFeedback(d.rating); singerTag(d.rating); } if (G.kind === 'sing') singPanels(G.scorers[sl]); }
-        wsSend({ type: 'feedback', to: sl, rating: d.saved ? 'Good' : d.rating, saved: !!d.saved, score: sc.liveScore() });
+        if (d.saved) G.savedAt = performance.now();   // v13.15.1: scored Miss (wrong pitch) but sung on time: the streak continues, the rating stays as scored
+        if (G.multi) flashPlayer(sl, d.rating); else { showFeedback(d.rating); singerTag(d.rating); if (G.kind === 'sing') singPanels(G.scorers[sl]); }
+        wsSend({ type: 'feedback', to: sl, rating: d.rating, saved: !!d.saved, score: sc.liveScore() });
       });
       if (done.length) updateScore(sl);
     });

@@ -98,12 +98,15 @@
     return { score: finalScore(notes, results), notes: results, counts: counts };
   }
 
-  // ---------- v13.15 combo rule (scoring is NOT changed: the score, ratings and counts still come from scoreNote) ----------
-  // A note keeps the combo alive when, at its best timing (+-90 ms: late / early / sliding in), at least ~45% of the note's
-  // duration is sung inside +-150 cents (octave-folded, median-of-3 + a short vibrato mean), of which at least 30% must be real voiced
-  // frames (short unvoiced gaps < 150 ms between in-tune frames are bridged, so a consonant or a breath inside a note does not
-  // break it). Silence through a sung note or the wrong pitch for most of it still breaks. Rests and gaps between notes are never judged.
-  var COMBO = { tolCents: 150, minCov: 0.45, minVoiced: 0.30, shiftMax: 0.09, shiftStep: 0.03, minConf: 0.55, frameCap: 0.02, bridgeMax: 0.15, vibWin: 0.045, shortNote: 0.15 };
+  // ---------- combo rule (v13.16: timing only; the score, ratings and counts still come from scoreNote, untouched) ----
+  // A note keeps the combo alive when the singer is VOICED during the note's timing window, whatever the pitch: at its best
+  // timing (+-90 ms: late / early / sliding in) at least ~35% of the note's duration holds voiced frames (short unvoiced gaps
+  // < 150 ms between voiced frames are bridged, so a consonant or a breath inside a note does not break it; notes < 150 ms
+  // get a slightly wider window), and at least 20% of the note's own span must be voiced (a shifted window can't borrow a
+  // neighbour's singing to cover a skipped note). The streak breaks only when the singer is silent / mostly absent through the note or only
+  // sings outside its time window. Rests and gaps between notes never break it. A wrong-pitch note therefore keeps the streak
+  // but still scores (and is rated) Miss / Good exactly as before. Set COMBO.timingOnly = false for the v13.15 pitch rule.
+  var COMBO = { timingOnly: true, minCore: 0.2, tolCents: 150, minCov: 0.35, minVoiced: 0.30, shiftMax: 0.09, shiftStep: 0.03, minConf: 0.55, frameCap: 0.02, bridgeMax: 0.15, vibWin: 0.045, shortNote: 0.15 };
 
   function signedCents(freq, midi) {
     var raw = 1200 * Math.log(freq / midiToHz(midi)) / Math.LN2;
@@ -130,23 +133,25 @@
       for (j = k + 1; j < n && ts[j] - ts[k] <= COMBO.vibWin; j++) { sum += med[j]; cnt++; }
       eff[k] = Math.min(Math.abs(med[k]), Math.abs(sum / cnt));
     }
-    var best = { cov: 0, voiced: 0 }, any0 = 0;
+    var best = { cov: 0, voiced: 0 }, any0 = 0, cpad = note.d < COMBO.shortNote ? (COMBO.shortNote - note.d) / 2 : 0;
     for (k = 0; k < n; k++) if (ts[k] >= note.t && ts[k] <= note.t + note.d) any0 += Math.min(COMBO.frameCap, (ts[k + 1] || ts[k] + COMBO.frameCap) - ts[k]);
     for (var sh = -COMBO.shiftMax; sh <= COMBO.shiftMax + 1e-9; sh += COMBO.shiftStep) {
       var pad = note.d < COMBO.shortNote ? (COMBO.shortNote - note.d) / 2 : 0,   // very short notes (< 150 ms, often a syllable the singer glides through): look a little wider
           t0 = note.t + sh - pad, t1 = note.t + sh + note.d + pad, vo = 0, br = 0;
       for (k = 0; k < n; k++) {
-        if (ts[k] < t0 || ts[k] > t1 || eff[k] > COMBO.tolCents) continue;
+        if (ts[k] < t0 || ts[k] > t1 || (!COMBO.timingOnly && eff[k] > COMBO.tolCents)) continue;
         var nxt = k + 1 < n ? ts[k + 1] : ts[k] + COMBO.frameCap, dt = Math.min(nxt, t1) - ts[k], own = Math.min(dt, COMBO.frameCap);
         vo += own;
-        if (dt > own && dt < COMBO.bridgeMax && k + 1 < n && eff[k + 1] <= COMBO.tolCents) br += dt - own;
+        if (dt > own && dt < COMBO.bridgeMax && k + 1 < n && (COMBO.timingOnly || eff[k + 1] <= COMBO.tolCents)) br += dt - own;
       }
       var cov = (vo + br) / note.d, vv = vo / note.d;
       if (vv >= COMBO.minVoiced && cov > best.cov) best = { cov: cov, voiced: vv };
       else if (!best.cov && vv > best.voiced) best.voiced = vv;
     }
-    var hit = best.cov >= COMBO.minCov;
-    return { hit: hit, cov: Math.min(1, best.cov), voiced: best.voiced, reason: hit ? '' : any0 < 0.25 * note.d ? 'silent' : 'off' };
+    var core = 0;   // voiced time inside the note's OWN span (a shifted window must not borrow a whole neighbour's singing to cover a skipped note)
+    if (COMBO.minCore > 0) for (k = 0; k < n; k++) if (ts[k] >= note.t - cpad && ts[k] <= note.t + note.d + cpad) core += Math.min(COMBO.frameCap, (ts[k + 1] || ts[k] + COMBO.frameCap) - ts[k]);
+    var hit = best.cov >= COMBO.minCov && (COMBO.minCore <= 0 || core / note.d >= COMBO.minCore);
+    return { hit: hit, cov: Math.min(1, best.cov), voiced: best.voiced, reason: hit ? '' : any0 < 0.25 * note.d ? 'silent' : 'off' }   // 'off' = voiced only outside the note's window (or, with timingOnly false, wrong pitch);
   }
 
   /**
