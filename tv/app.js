@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var CFG = window.KARAOKE_CONFIG;
-  var BUILD = 'v13.14';
+  var BUILD = 'v13.15';
   var DEV = window.KaraokeDev = { overlay: true, tiles: true, feedback: true, lyrics: true, hud: true, bg: true };
   var S = window.KaraokeScoring;
   var $ = function (id) { return document.getElementById(id); };
@@ -677,7 +677,7 @@
     $('gsArt').src = SONG_BASE + song.id + '/art.webp'; $('gsTitle').textContent = song.title; $('gsArtist').textContent = song.artist || '';
     $('gsBar').style.transform = 'scaleX(0)'; $('gsTime').textContent = '0:00 / ' + fmt(song.duration || 0);
     $('gbcN').textContent = '0'; $('gBigCombo').className = 'g-bigcombo'; $('gsgTag').textContent = ''; $('gsgTag').className = 'gsg-tag';
-    var sl = G.slots[0] || 1; $('gsgAv').src = avatarFor(sl); $('gsgP').textContent = 'P' + sl; $('gsgP').style.background = slotColor(sl);
+    var sl = G.slots[0] || 1; $('gsgAv').src = avatarFor(sl); $('gsgP').textContent = 'P' + sl; $('gsgP').style.background = slotColor(sl); $('game').style.setProperty('--pc', slotColor(sl));   // v13.15: SCORE / COMBO panels use the same colour as the pitch trace
     G.hudSet = false; if (!soloBeat() && phone && typeof setPhone === 'function') try { setPhone(phone); } catch (e) {}
     var cards = kind === 'duet' || G.multi; $('game').classList.toggle('cards', !!cards); PC.rows = []; PC.lead = 0;
     if (!cards) { $('pCards').innerHTML = ''; renderJoinQr(); return; }
@@ -702,7 +702,7 @@
     });
     if (lead !== PC.lead) { if (PC.lead && $('pc' + PC.lead)) $('pc' + PC.lead).classList.remove('lead'); PC.lead = best > 0 ? lead : 0; if (PC.lead) $('pc' + PC.lead).classList.add('lead'); }
   }
-  function singerTag(rating) { if (G.kind !== 'duet') return; var el = $('gsgTag'); el.textContent = rating.toUpperCase(); el.className = 'gsg-tag ' + rating; void el.offsetWidth; el.className = 'gsg-tag show ' + rating; }
+  function singerTag(rating, text) { if (G.kind !== 'duet') return; var el = $('gsgTag'); el.textContent = (text || rating).toUpperCase(); el.className = 'gsg-tag ' + rating; void el.offsetWidth; el.className = 'gsg-tag show ' + rating; }
   function bigCombo(n) {
     if (G.kind !== 'duet') return; var el = $('gBigCombo');
     if (n < 3) { if (el.className !== 'g-bigcombo') el.className = 'g-bigcombo'; return; }
@@ -799,19 +799,16 @@
     G.lat[slot] = m.lat || 0; phoneLatMs = Math.max.apply(null, G.slots.map(function (s) { return G.lat[s] || 0; }));
     var t = clock() - ((m.lat || 0) + tvLegMs + outLat() + jit) / 1000;
     var f = m.f > 0 ? m.f : 0;
-    sc.addFrame(t, f);
+    sc.addFrame(t, f, m.c);   // scoring uses the raw frames (+ confidence); only the drawn trace is smoothed
     if (!lane) return;
-    var pv = G.prev[slot];
-    if (!(f > 0)) { G.prev[slot] = null; return; }
-    var nn = noteAt(t), ref = nn ? nn.midi : refMidiAt(t);
-    var mm = foldTo(S.hzToMidi(f), ref), c = nn ? Math.abs(mm - ref) * 100 : 999;
-    var pcol = G.multi ? slotColor(slot) : null;
-    if (pv && t - pv.t < 0.12 && t > pv.t) {
-      var cc = Math.max(c, pv.c);
-      lane.addSegment({ t0: pv.t, m0: pv.m, t1: t, m1: mm, col: pcol || accColor(cc), lit: !!nn && c <= 100, midi: nn ? nn.midi : 0 });
-    }
-    G.prev[slot] = { t: t, m: mm, c: c };
-    lane.setLive({ t: t, m: mm, c: c, hz: f, note: nn, color: pcol }, G.multi ? slot : 0);
+    // v13.15 render-only smoothing: low-confidence frames ignored, octave jumps folded, median-of-3 + one-euro filter, gaps < 150 ms bridged.
+    var smo = (G.sm = G.sm || {})[slot] || (G.sm[slot] = new S.PitchSmoother());
+    var nn = noteAt(t), ref = nn ? nn.midi : refMidiAt(t), pt = smo.push(t, f, m.c, ref);
+    if (!pt) return;
+    var mm = pt.m, c = nn ? Math.abs(mm - nn.midi) * 100 : 999;
+    var pcol = slotColor(slot);   // v13.15: the trace, dot, scoreboard / HUD panels and results all use slotColor(slot)
+    if (pt.join && pt.pm != null) lane.addSegment({ t0: pt.pt, m0: pt.pm, t1: pt.t, m1: mm, col: pcol, lit: !!nn && c <= 100, midi: nn ? nn.midi : 0 });
+    lane.setLive({ t: pt.t, m: mm, c: c, hz: f, note: nn, color: pcol }, G.multi ? slot : 0);
   }
   // per-round player setup: who sings, which notes each player is scored on
   var JS = { n: 0, sum: 0, max: 0, over50: 0 };
@@ -924,14 +921,14 @@
     var sc = G.scorers[s];
     if (!G.multi) {
       if (DEV.hud) $('score').textContent = sc.liveScore();
-      $('combo').textContent = sc.combo > 1 ? sc.combo + ' note combo' : '';
+      $('combo').textContent = sc.combo > 1 ? sc.combo + ' note combo' + (G.savedAt && performance.now() - G.savedAt < 1500 ? ' \u00b7 saved!' : '') : '';
       return;
     }
     var v = sc.liveScore();
     $('sbs' + s).textContent = v;
     $('sbb' + s).style.transform = 'scaleX(' + (v / 100).toFixed(3) + ')';
   }
-  function flashPlayer(s, rating) { var el = $('sbfb' + s); if (el) { el.textContent = rating; el.className = 'sb-fb ' + rating; } }
+  function flashPlayer(s, rating, cls) { var el = $('sbfb' + s); if (el) { el.textContent = rating; el.className = 'sb-fb ' + (cls || rating); } }
   var lane = null, prevPt = null; // prevPt kept for older debug hooks
   function accColor(c) { return c <= 35 ? '#3ff2ff' : c <= 100 ? '#59ffa8' : c <= 170 ? '#ffd75e' : '#ff3fa4'; }
 
@@ -1385,7 +1382,8 @@
   // ---------- v13.9 RESULTS: winner reveal -> multiplayer table, solo grade card. Real scorer data only (no invented numbers). ----------
   var SLOT_COLOR = ['#ff3fa4', '#3ff2ff', '#ffd75e', '#59ffa8'] /* = server/phone COLORS by slot */, RS = { btns: [], idx: 0, phase: '', timer: 0, kind: '' };
   // v13.11.1: ONE source of truth for a player's colour = their slot (the server/phone hand out COLORS[slot-1]); HUD cards, scoreboard, pitch lane, lyrics owner, results and the phone all use it
-  function slotColor(sl) { if (window.KBA_ON && KBA_ON.active) return '#ff3fa4'; var p = PLAYERS[sl]; return (p && p.color) || SLOT_COLOR[(((sl || 1) - 1) % 4 + 4) % 4]; }
+  function slotColor(sl) { if (window.KBA_ON && KBA_ON.active) return SLOT_COLOR[0]; var p = PLAYERS[sl]; return (p && p.color) || SLOT_COLOR[(((sl || 1) - 1) % 4 + 4) % 4]; }
+  window.KBA_PCOL = function (n) { return SLOT_COLOR[(((n || 1) - 1) % 4 + 4) % 4]; };   // v13.15: one colour source for online duels (you = player 1, opponent / ghost = player 2)
   function rgba(hex, a) { var n = parseInt(hex.slice(1), 16); return 'rgba(' + (n >> 16 & 255) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',' + a + ')'; }
   function avatarFor(sl) { return 'img/av' + (((sl || 1) - 1) % 8) + '.webp'; }
   function accPct(c) { if (!c) return null; var t = (c.Perfect || 0) + (c.Great || 0) + (c.Good || 0) + (c.Miss || 0); return t ? Math.round(100 * ((c.Perfect || 0) + 0.75 * (c.Great || 0) + 0.45 * (c.Good || 0)) / t) : null; }
@@ -1593,8 +1591,9 @@
         var gi = G.idx[sl][d.index], pb = G.best[gi];
         if (!pb || RANK[d.rating] > RANK[pb.rating]) { G.best[gi] = d; if (DEV.tiles) lane.markScored(gi, d); }
         if (!DEV.feedback) return;
-        if (G.multi) flashPlayer(sl, d.rating); else { showFeedback(d.rating); singerTag(d.rating); if (G.kind === 'sing') singPanels(G.scorers[sl]); }
-        wsSend({ type: 'feedback', to: sl, rating: d.rating, score: sc.liveScore() });
+        if (d.saved) G.savedAt = performance.now();   // v13.15: this note was a Miss on score, but it was close enough to keep the combo
+        if (G.multi) flashPlayer(sl, d.saved ? 'Saved' : d.rating, d.saved ? 'Good' : ''); else { if (d.saved) { showFeedback('Good'); singerTag('Good', 'SAVED'); } else { showFeedback(d.rating); singerTag(d.rating); } if (G.kind === 'sing') singPanels(G.scorers[sl]); }
+        wsSend({ type: 'feedback', to: sl, rating: d.saved ? 'Good' : d.rating, saved: !!d.saved, score: sc.liveScore() });
       });
       if (done.length) updateScore(sl);
     });

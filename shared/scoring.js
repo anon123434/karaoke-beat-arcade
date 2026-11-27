@@ -98,6 +98,92 @@
     return { score: finalScore(notes, results), notes: results, counts: counts };
   }
 
+  // ---------- v13.15 combo rule (scoring is NOT changed: the score, ratings and counts still come from scoreNote) ----------
+  // A note keeps the combo alive when, at its best timing (+-90 ms: late / early / sliding in), at least ~45% of the note's
+  // duration is sung inside +-150 cents (octave-folded, median-of-3 + a short vibrato mean), of which at least 30% must be real voiced
+  // frames (short unvoiced gaps < 150 ms between in-tune frames are bridged, so a consonant or a breath inside a note does not
+  // break it). Silence through a sung note or the wrong pitch for most of it still breaks. Rests and gaps between notes are never judged.
+  var COMBO = { tolCents: 150, minCov: 0.45, minVoiced: 0.30, shiftMax: 0.09, shiftStep: 0.03, minConf: 0.55, frameCap: 0.02, bridgeMax: 0.15, vibWin: 0.045, shortNote: 0.15 };
+
+  function signedCents(freq, midi) {
+    var raw = 1200 * Math.log(freq / midiToHz(midi)) / Math.LN2;
+    return ((raw % 1200) + 1800) % 1200 - 600;
+  }
+
+  /** frames sorted by t, [{t, f, c?}]. Returns {hit, cov, voiced, reason} (reason: '' | 'silent' | 'off'). */
+  function comboEval(note, frames) {
+    var span = COMBO.shiftMax + COMBO.vibWin + 0.03, a = lowerBound(frames, note.t - span), end = note.t + note.d + span;
+    var ts = [], es = [], any = [];
+    for (var i = a; i < frames.length && frames[i].t <= end; i++) {
+      var fr = frames[i];
+      if (!(fr.f > 0) || (fr.c != null && fr.c < COMBO.minConf)) continue;
+      ts.push(fr.t); es.push(signedCents(fr.f, note.midi));
+    }
+    var n = ts.length, med = new Array(n), eff = new Array(n), k;
+    for (k = 0; k < n; k++) {   // median of 3 (single-frame glitches), then the lenient of "now" and the short-window mean (vibrato centre)
+      var x0 = es[Math.max(0, k - 1)], x1 = es[k], x2 = es[Math.min(n - 1, k + 1)];
+      med[k] = Math.max(Math.min(x0, x1), Math.min(Math.max(x0, x1), x2));
+    }
+    for (k = 0; k < n; k++) {
+      var sum = 0, cnt = 0;
+      for (var j = k; j >= 0 && ts[k] - ts[j] <= COMBO.vibWin; j--) { sum += med[j]; cnt++; }
+      for (j = k + 1; j < n && ts[j] - ts[k] <= COMBO.vibWin; j++) { sum += med[j]; cnt++; }
+      eff[k] = Math.min(Math.abs(med[k]), Math.abs(sum / cnt));
+    }
+    var best = { cov: 0, voiced: 0 }, any0 = 0;
+    for (k = 0; k < n; k++) if (ts[k] >= note.t && ts[k] <= note.t + note.d) any0 += Math.min(COMBO.frameCap, (ts[k + 1] || ts[k] + COMBO.frameCap) - ts[k]);
+    for (var sh = -COMBO.shiftMax; sh <= COMBO.shiftMax + 1e-9; sh += COMBO.shiftStep) {
+      var pad = note.d < COMBO.shortNote ? (COMBO.shortNote - note.d) / 2 : 0,   // very short notes (< 150 ms, often a syllable the singer glides through): look a little wider
+          t0 = note.t + sh - pad, t1 = note.t + sh + note.d + pad, vo = 0, br = 0;
+      for (k = 0; k < n; k++) {
+        if (ts[k] < t0 || ts[k] > t1 || eff[k] > COMBO.tolCents) continue;
+        var nxt = k + 1 < n ? ts[k + 1] : ts[k] + COMBO.frameCap, dt = Math.min(nxt, t1) - ts[k], own = Math.min(dt, COMBO.frameCap);
+        vo += own;
+        if (dt > own && dt < COMBO.bridgeMax && k + 1 < n && eff[k + 1] <= COMBO.tolCents) br += dt - own;
+      }
+      var cov = (vo + br) / note.d, vv = vo / note.d;
+      if (vv >= COMBO.minVoiced && cov > best.cov) best = { cov: cov, voiced: vv };
+      else if (!best.cov && vv > best.voiced) best.voiced = vv;
+    }
+    var hit = best.cov >= COMBO.minCov;
+    return { hit: hit, cov: Math.min(1, best.cov), voiced: best.voiced, reason: hit ? '' : any0 < 0.25 * note.d ? 'silent' : 'off' };
+  }
+
+  /**
+   * Render-only pitch smoothing for the TV pitch trace (never feeds the scorer): ignores low-confidence frames, folds octave jumps
+   * (to the previous point, or the note's octave), median of 3, then a one-euro filter (fast moves pass, jitter / vibrato ripple is damped).
+   * push(t, f, c, refMidi) -> null (nothing to draw this frame) or {t, m, join}; join = connect to the previous drawn point
+   * (gaps < 150 ms are bridged unless the pitch jumped > 4 semitones across a gap). Adds about one frame (median) + ~30 ms (filter).
+   */
+  var SMOOTH = { minConf: 0.6, gap: 0.15, jump: 4, minCutoff: 5, beta: 0.4, dCutoff: 8 };
+  function PitchSmoother(opts) { this.o = {}; for (var k in SMOOTH) this.o[k] = opts && opts[k] != null ? opts[k] : SMOOTH[k]; this.reset(); }
+  PitchSmoother.prototype.reset = function () { this.hist = []; this.lastT = -9; this.x = null; this.dx = 0; this.lastDrawT = -9; this.lastM = null; };
+  function alpha(cut, dt) { var tau = 1 / (2 * Math.PI * cut); return 1 / (1 + tau / dt); }
+  PitchSmoother.prototype.push = function (t, f, c, ref) {
+    var o = this.o;
+    if (!(f > 0) || (c != null && c < o.minConf)) return null;
+    var m = hzToMidi(f), gap = t - this.lastT;
+    if (gap > o.gap) { this.hist = []; this.x = null; }
+    var anchor = this.x != null ? this.x : ref;
+    if (anchor == null) anchor = m;
+    var v = m; while (v - anchor > 6) v -= 12; while (anchor - v > 6) v += 12;
+    if (ref != null && Math.abs(v - ref) > 8) { v = m; while (v - ref > 6) v -= 12; while (ref - v > 6) v += 12; }
+    this.hist.push(v); if (this.hist.length > 3) this.hist.shift();
+    var h = this.hist, mv = h.length < 3 ? v : Math.max(Math.min(h[0], h[1]), Math.min(Math.max(h[0], h[1]), h[2]));
+    var join = this.lastM != null && t - this.lastDrawT <= o.gap;
+    if (this.x == null) { this.x = mv; this.dx = 0; }
+    else {
+      var dt = Math.max(0.004, Math.min(0.2, t - this.lastT)), raw = (mv - this.x) / dt;
+      this.dx += alpha(o.dCutoff, dt) * (raw - this.dx);
+      this.x += alpha(o.minCutoff + o.beta * Math.abs(this.dx), dt) * (mv - this.x);
+    }
+    if (join && t - this.lastDrawT > 0.03 && Math.abs(this.x - this.lastM) > o.jump) join = false;
+    this.lastT = t;
+    var out = { t: t, m: this.x, join: join, pm: this.lastM, pt: this.lastDrawT };
+    this.lastDrawT = t; this.lastM = this.x;
+    return out;
+  };
+
   /**
    * Live scorer: feed frames as they arrive (song-timeline t), call update(now)
    * every animation frame; it finalises notes once their timing window has passed.
@@ -110,11 +196,11 @@
     this.totalDur = notes.reduce(function (s, n) { return s + n.d; }, 0);
     this.earned = 0;
     this.counts = { Perfect: 0, Great: 0, Good: 0, Miss: 0 };
-    this.combo = 0; this.maxCombo = 0;
+    this.combo = 0; this.maxCombo = 0; this.breaks = 0; this.breakSilent = 0; this.saves = 0;
   }
-  LiveScorer.prototype.addFrame = function (t, f) {
-    // keep sorted (frames normally arrive in order)
-    var fr = { t: t, f: f };
+  LiveScorer.prototype.addFrame = function (t, f, c) {
+    // keep sorted (frames normally arrive in order); c = optional pitch confidence (0-1) from the phone
+    var fr = c > 0 || c === 0 ? { t: t, f: f, c: c } : { t: t, f: f };
     var arr = this.frames;
     if (!arr.length || arr[arr.length - 1].t <= t) arr.push(fr);
     else arr.splice(lowerBound(arr, t), 0, fr);
@@ -129,8 +215,9 @@
       this.results[this.next] = r;
       this.earned += r.score * n.d;
       this.counts[r.rating]++;
-      if (r.rating === 'Miss') this.combo = 0; else { this.combo++; this.maxCombo = Math.max(this.maxCombo, this.combo); }
-      out.push({ index: this.next, note: n, score: r.score, rating: r.rating });
+      var ce = comboEval(n, this.frames), keep = ce.hit || r.rating !== 'Miss', saved = keep && r.rating === 'Miss';
+      if (!keep) { this.combo = 0; this.breaks++; if (ce.reason === 'silent') this.breakSilent++; } else { this.combo++; this.maxCombo = Math.max(this.maxCombo, this.combo); if (saved) this.saves++; }
+      out.push({ index: this.next, note: n, score: r.score, rating: r.rating, saved: saved, cov: ce.cov });
       this.next++;
     }
     return out;
@@ -145,13 +232,13 @@
   LiveScorer.prototype.liveScore = function () { return this.totalDur ? Math.round(100 * this.earned / this.totalDur) : 0; };
   LiveScorer.prototype.finish = function () {
     this.update(Infinity);
-    return { score: finalScore(this.notes, this.results), counts: this.counts, maxCombo: this.maxCombo, notes: this.results };
+    return { score: finalScore(this.notes, this.results), counts: this.counts, maxCombo: this.maxCombo, breaks: this.breaks, saves: this.saves, notes: this.results };
   };
 
   return {
     CONFIG: CONFIG, midiToHz: midiToHz, hzToMidi: hzToMidi, centsOff: centsOff,
     frameCredit: frameCredit, rate: rate, scoreNote: scoreNote, scoreSong: scoreSong,
-    LiveScorer: LiveScorer
+    LiveScorer: LiveScorer, comboEval: comboEval, COMBO: COMBO, PitchSmoother: PitchSmoother, SMOOTH: SMOOTH
   };
 });
 

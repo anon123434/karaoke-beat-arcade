@@ -134,7 +134,7 @@
     var d = this.dots[slot];
     if (!d) {
       var el = document.createElement('div'); el.className = 'lane-dot'; el.innerHTML = '<i></i>';
-      if (slot === 0 || !p.color) { el = this.dotEl; } else { el.style.background = p.color + '73'; el.querySelector('i').style.background = p.color; this.wrap.appendChild(el); }
+      if (slot === 0 || !p.color) { el = this.dotEl; if (p.color) { el.style.background = p.color + '73'; el.querySelector('i').style.background = p.color; } } else { el.style.background = p.color + '73'; el.querySelector('i').style.background = p.color; this.wrap.appendChild(el); }
       d = this.dots[slot] = { el: el, state: '', p: null };
     }
     if (d.p && p.t - d.p.t < 0.3) p.ys = d.p.ys; else p.ys = p.m;
@@ -175,10 +175,10 @@
       var ox = Math.round(X(this.song.notes[act].t));
       if (ox !== this.outlineX) { this.outline.style.transform = 'translate3d(' + ox + 'px,' + this.outlineY + 'px,0)'; this.outlineX = ox; }
     }
-    var dots = this.dots || {};
+    var dots = this.dots || {}, nowMs = performance.now(), dtMs = Math.min(100, nowMs - (this.lastDrawMs || nowMs)), ease = 1 - Math.exp(-dtMs / 22); this.lastDrawMs = nowMs;
     for (var key in dots) {
-      var D = dots[key], dp = D.p, multi = key !== '0' && !!dp && !!dp.color;
-      if (dp) dp.ys += (dp.m - dp.ys) * 0.35; // interpolate between phone frames
+      var D = dots[key], dp = D.p, multi = !!dp && !!dp.color;   // v13.15: any dot with a player colour uses it (solo too)
+      if (dp) dp.ys += (dp.m - dp.ys) * ease; // frame-rate independent glide between phone frames
       if (dev.overlay !== false && dp && t - dp.t < 0.35) {
         var cls = multi ? 'pl' : dp.c <= 35 ? 'p' : dp.c <= 100 ? 'g' : dp.c <= 170 ? 'o' : 'm';
         if (cls !== D.state) { D.el.className = 'lane-dot on ' + cls; D.state = cls; }

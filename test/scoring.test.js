@@ -102,3 +102,56 @@ test('[synthetic] calibrate: recovers a 180 ms speaker delay, rejects missing/no
   assert.strictEqual(S.calibrate(mk(0.18, 0.1), cal.beeps, cal.freq).ok, false);    // ±100 ms jitter
   assert.strictEqual(S.calibrate([], cal.beeps, cal.freq).ok, false);
 });
+
+// ---- v13.15 combo rule + trace smoother (SYNTHETIC frames) ----
+const cf = (note, fn, hop = 0.0107) => { const o = []; for (let t = note.t - 0.3; t < note.t + note.d + 0.3; t += hop) o.push({ t, f: fn(t), c: 0.95 }); return o; };
+const N = { t: 1, d: 0.6, midi: 60 };
+
+test('comboEval: vibrato and a breath inside the note keep the combo', () => {
+  const f = cf(N, t => (t >= N.t && t <= N.t + N.d && !(t > 1.28 && t < 1.38)) ? hz(60 + 0.45 * Math.sin(t * 2 * Math.PI * 5.5)) : 0);
+  assert.ok(S.comboEval(N, f).hit);
+});
+test('comboEval: sliding into the note from below keeps the combo', () => {
+  const f = cf(N, t => (t >= N.t && t <= N.t + N.d) ? hz(60 - Math.max(0, 1 - (t - N.t) / 0.12) * 2) : 0);
+  assert.ok(S.comboEval(N, f).hit);
+});
+test('comboEval: silent through the note breaks', () => {
+  const r = S.comboEval(N, cf(N, () => 0));
+  assert.ok(!r.hit); assert.strictEqual(r.reason, 'silent');
+});
+test('comboEval: sustained wrong pitch breaks (even a semitone-and-a-half off)', () => {
+  assert.ok(!S.comboEval(N, cf(N, () => hz(63))).hit);
+  assert.ok(!S.comboEval(N, cf(N, () => hz(61.8))).hit);
+});
+test('comboEval: mostly unhit note (hit < 45% of its length) breaks, 60% hit keeps', () => {
+  assert.ok(!S.comboEval(N, cf(N, t => (t >= N.t && t < N.t + 0.2) ? hz(60) : (t < N.t + N.d && t >= N.t ? hz(64) : 0))).hit);
+  assert.ok(S.comboEval(N, cf(N, t => (t >= N.t && t < N.t + 0.4) ? hz(60) : (t < N.t + N.d && t >= N.t ? hz(64) : 0))).hit);
+});
+test('comboEval: an octave-up singer still matches', () => {
+  assert.ok(S.comboEval(N, cf(N, t => (t >= N.t && t <= N.t + N.d) ? hz(72) : 0)).hit);
+});
+test('LiveScorer: rests / gaps never break a combo', () => {
+  const notes = [{ t: 0, d: 0.5, midi: 60 }, { t: 3, d: 0.5, midi: 62 }];
+  const sc = new S.LiveScorer(notes);
+  for (let t = 0; t < 4; t += 0.0107) { const n = notes.find(x => t >= x.t && t < x.t + x.d); sc.addFrame(t, n ? hz(n.midi) : 0, 0.95); sc.update(t); }
+  assert.strictEqual(sc.combo, 2); assert.strictEqual(sc.breaks, 0);
+});
+
+test('PitchSmoother: bridges a short unvoiced gap, breaks on a long one', () => {
+  const sm = new S.PitchSmoother(); const out = [];
+  for (let t = 0; t < 1.5; t += 0.0107) { const gap = (t > 0.5 && t < 0.6) || (t > 1.0 && t < 1.4); out.push(sm.push(t, gap ? 0 : hz(60), 0.95, 60)); }
+  const pts = out.filter(Boolean), joined = pts.filter(p => p.join).length;
+  assert.ok(joined > pts.length * 0.9, 'short gap bridged: ' + joined + '/' + pts.length);
+  assert.ok(pts.filter(p => !p.join).length >= 2, 'long gap starts a new line');
+});
+test('PitchSmoother: octave glitches snap to the reference octave', () => {
+  const sm = new S.PitchSmoother(); let worst = 0;
+  for (let t = 0; t < 1; t += 0.0107) { const o = sm.push(t, hz(((t * 100) | 0) % 7 === 3 ? 72 : 60), 0.95, 60); if (o) worst = Math.max(worst, Math.abs(o.m - 60)); }
+  assert.ok(worst < 1.5, 'worst ' + worst);
+});
+test('PitchSmoother: low-confidence frames are ignored; added latency stays small', () => {
+  const sm = new S.PitchSmoother(); const hit = [];
+  for (let t = 0; t < 1; t += 0.0107) { const o = sm.push(t, hz(t < 0.5 ? 60 : 63), t > 0.2 && t < 0.25 ? 0.2 : 0.95, 60); if (o) hit.push([t, o.m]); }
+  const t90 = hit.find(([t, m]) => t >= 0.5 && m >= 62.7)[0] - 0.5;
+  assert.ok(t90 <= 0.06, 'step 90% in ' + Math.round(t90 * 1000) + ' ms');
+});

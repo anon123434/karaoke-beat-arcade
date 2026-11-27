@@ -927,3 +927,13 @@ body.ptr .hbtn:hover, body.ptr .pm-item:hover, body.ptr .rs-btn:hover, body.ptr 
 /* v13.13 remote focus on the play-style tabs */
 #modeSwitch span.mfocus { outline: 3px solid var(--cyan); outline-offset: 2px; box-shadow: 0 0 22px rgba(63,242,255,.55); transform: translateZ(0); }
 #modeSwitch span.pressed { transform: scale(.95); }
+
+/* v13.15: every player's HUD (name, score, combo) uses the same colour as their pitch trace (slotColor -> --c / --pc) */
+.pc-n { color: var(--c); } .pc b { color: var(--c); text-shadow: 0 0 14px var(--c); }
+.sb-score { color: var(--c); }
+#game .gp { border-color: var(--pc, rgba(255,255,255,.3)); }
+#game .gp b { color: var(--pc, #fff); text-shadow: 0 0 18px var(--pc, rgba(139,92,255,.6)); }
+#game .gp-combo { border-color: var(--pc, rgba(255,215,94,.55)); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 0 28px var(--pc, rgba(255,180,46,.25)); }
+#game .gp-combo b { background: none; -webkit-background-clip: border-box; background-clip: border-box; color: var(--pc, #ffd75e); }
+#game .gp-combo i { color: var(--pc, #ffe9a8a0); }
+#game .gp-acc b { color: var(--green); text-shadow: 0 0 18px rgba(89,255,168,.55); }
