@@ -63,7 +63,7 @@ function serveStatic(req, res, urlPath) {
 }
 
 let phoneIdx = null;
-let qrCache = null, cloudQr = null;
+let qrCache = null, cloudQr = null, lbQr = null;
 const QR_OPTS = { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#0b0420', light: '#ffffff' } };
 // v13.10: when the hosted Worker room relay is up, the TV QR is <origin>/kba/j/<room> (no cert, no local IP);
 // otherwise (Worker unreachable / no credential) the local HTTPS QR + CA QR as before.
@@ -91,6 +91,17 @@ async function handler(req, res) {
   if (process.env.KTV_TEST === '1' && cloud && req.method === 'POST' && /^\/api\/cloud\/(kick|block|unblock)$/.test(u.pathname)) {   // test hooks (private test servers only)
     const act = u.pathname.split('/').pop(); if (act === 'kick') cloud.kick(); else cloud.block(act === 'block'); if (act === 'block') cloud.kick();
     res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end('{"ok":true}');
+  }
+  if (u.pathname === '/api/lb/top') {   // v13.16: world top lists for the TV app (cached snapshot from the hosted Worker)
+    res.setHeader('Cache-Control', 'no-store');
+    if (!cloud) return json(res, 503, { error: 'offline' });
+    try { const body = await cloud.lbTop(u.searchParams.get('kind') || 'sing', !!u.searchParams.get('fresh')); res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(body); }
+    catch (e) { return json(res, 503, { error: 'offline' }); }
+  }
+  if (u.pathname === '/api/lb/link') {   // v13.16: QR + address of the full world leaderboard
+    if (!cloud) return json(res, 503, { error: 'offline' });
+    try { if (!lbQr) lbQr = await QRCode.toString(cloud.lbUrl, QR_OPTS); } catch (e) { return json(res, 500, { error: 'qr' }); }
+    res.setHeader('Cache-Control', 'no-store'); return json(res, 200, { url: cloud.lbUrl, qrSvg: lbQr });
   }
   if (u.pathname === '/api/session') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
@@ -308,7 +319,11 @@ function onConnection(ws, req) {
           if (cloud && cloudSlots().has(+m.to)) return cloud.send(m);
           const p = players.get(+m.to); return p && send(p.ws, m);
         }
-        if (cloud && cloudPlayers.length) cloud.send(m);
+        // v13.16: a play's start/results always reach the hosted room (its anti-abuse rules decide what counts for the world board);
+        // other chatter still goes only when phones joined through the cloud
+        const lbState = m.type === 'state' && (m.state === 'playing' || m.state === 'results' || m.state === 'home');
+        if (cloud && (cloudPlayers.length || lbState)) cloud.send(m);
+        if (m.web) { const { web, ...rest } = m; return toPhones(rest); }   // the leaderboard pack is for the cloud room only
         return toPhones(m);
       }
     }

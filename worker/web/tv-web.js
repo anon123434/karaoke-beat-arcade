@@ -29,7 +29,7 @@
       '<div class="ks-scan"><span class="ks-hand">👆</span> Scan me with your phone camera</div><div class="ks-players" id="ksPl"></div></div>' +
       '<div class="ks-right"><div class="ks-logo"><img src="' + BASE + '/web/m/logo.webp" alt="COOLEST! Karaoke Beat Arcade"></div><button class="ks-go" id="ksGo">▶&nbsp;START</button>' +
       '<button class="ks-online" id="ksOn" style="display:none">🌎 PLAY ONLINE 1v1</button>' +
-      '<button class="ks-small" id="ksLb">🏆 Scores</button><div class="ks-tip">Use ◀ ▶ and <b>OK</b></div>' +
+      '<button class="ks-small ks-lbbtn" id="ksLb">🏆 WORLD LEADERBOARD</button><div class="ks-tip">Use ◀ ▶ and <b>OK</b></div>' +
       '<p class="ks-legal">A private, non-commercial fan project for family and friends. Not for sale, no ads or fees. <a href="' + BASE + '/about" id="ksLegal">Full disclaimer</a></p></div>';
     document.body.appendChild(ov);
     qrBox = ov.querySelector('#ksQr'); startBtn = ov.querySelector('#ksGo'); lbBtn = ov.querySelector('#ksLb'); legal = ov.querySelector('#ksLegal'); pl = ov.querySelector('#ksPl');
@@ -79,6 +79,7 @@
   // --- high-score moment on the results screen ---
   var hs;
   function showHs(m) {
+    if (window.KBA_RANK) return;   // v13.16: tv/rank.js shows the rank-up animation / nudge instead of this side card (it listens to the same message)
     if (!m.ok || !m.results) return;
     if (!hs) { hs = el('div', 'ktv-hs'); document.body.appendChild(hs); }
     var best = m.results.filter(function (r) { return r.songRecord; })[0], pb = m.results.filter(function (r) { return r.personalBest && !r.songRecord; })[0];

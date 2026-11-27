@@ -164,12 +164,40 @@ function startCloud(opts) {
       return;
     }
     if (m.type === 'guide-query') { if (!ctlOk('q')) return; return opts.onToTv({ type: 'guide-query' }); }
-    // 'sync' (the DO's stored copy), 'web-hs' and anything else: ignored
+    // v13.16: the Worker's answer to a submitted score (rank, neighbours, who was passed) goes straight to the TV for the rank-up animation
+    if (m.type === 'web-hs') { stats.hs = (stats.hs || 0) + 1; return opts.onToTv({ type: 'web-hs', ok: !!m.ok, song: String(m.song || '').slice(0, 80), title: String(m.title || '').slice(0, 120), kind: ['sing', 'beat', 'duet'].includes(m.kind) ? m.kind : 'sing', results: Array.isArray(m.results) ? m.results.slice(0, 5) : [], top: Array.isArray(m.top) ? m.top.slice(0, 5) : [] }); }
+    // 'sync' (the DO's stored copy) and anything else: ignored
   }
+  // v13.16: world top lists for the TV. One cached snapshot per kind (5 min); the Worker answers it from its edge cache.
+  // Read-only: the relay credential may GET /api/lb/top and nothing else new. No timers: only fetched when the TV asks.
+  const lbCache = {}, lbPending = {};
+  function lbTop(kind, fresh) {
+    kind = ['sing', 'beat', 'duet'].includes(kind) ? kind : 'sing';
+    const c = lbCache[kind], now = Date.now();
+    if (c && (now - c.at < 300000) && !(fresh && now - c.at > 20000)) return Promise.resolve(c.body);
+    if (lbPending[kind]) return lbPending[kind];
+    const lib = require(cfg.origin.startsWith('https') ? 'https' : 'http');
+    const p = new Promise((resolve, reject) => {
+      const req = lib.get(`${cfg.origin}${cfg.base}/api/lb/top?kind=${kind}${fresh ? '&fresh=1' : ''}`, { timeout: 7000, headers: { Cookie: 'ktv_inv=' + cfg.inv, 'User-Agent': 'KaraokeTV-MacBridge/13.16', Accept: 'application/json' } }, res => {
+        let buf = '';
+        res.setEncoding('utf8');
+        res.on('data', d => { buf += d; if (buf.length > 2e6) { res.destroy(); reject(new Error('too big')); } });
+        res.on('end', () => {
+          if (res.statusCode !== 200) return reject(new Error('http ' + res.statusCode));
+          try { const j = JSON.parse(buf); if (!j || typeof j.songs !== 'object') throw new Error('bad body'); lbCache[kind] = { at: Date.now(), body: buf }; resolve(buf); } catch (e) { reject(e); }
+        });
+      });
+      req.on('error', reject);
+      req.on('timeout', () => { try { req.destroy(new Error('timeout')); } catch (e) {} });
+    }).finally(() => { delete lbPending[kind]; });
+    lbPending[kind] = p;
+    return p.catch(e => { if (c) return c.body; throw e; });   // stale beats nothing
+  }
+  const lbUrl = `${cfg.origin}${cfg.base}/leaderboard`;
   const ready = new Promise(r => { firstTry = r; });
   connect();
   return {
-    room, phoneUrl,
+    room, phoneUrl, lbTop, lbUrl,
     up: () => up,
     ready: ms => Promise.race([ready, new Promise(r => setTimeout(r, ms))]).then(() => up),
     players: () => players,

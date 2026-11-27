@@ -135,7 +135,9 @@ async function sing(req, env, ctx, url) {
   const phoneOk = /^\/(phone\/.*|shared\/.*|web\/.*|tv\/img\/.*|songs\/[a-z0-9-]+\/(song\.json|art\.webp)|api\/stt|ws|api\/lb\/.*|leaderboard\/?)$/.test(sub.replace(/^\//, '/'));
   // Mac relay (TV host role) credential: its own Worker secret, independent of INVITE_CODE, so changing the invite never disconnects the Mac bridge.
   const relayOk = !!(env.RELAY_TOKEN && sub === '/ws' && url.searchParams.get('role') === 'tv' && cookies(req).ktv_inv === env.RELAY_TOKEN);
-  const allowed = acc.invite || relayOk || (acc.room && phoneOk);
+  // v13.16: the local relay may READ the world top lists (GET only, same edge cache) so the Samsung TV can show them; it can never write
+  const relayRead = !!(env.RELAY_TOKEN && req.method === 'GET' && cookies(req).ktv_inv === env.RELAY_TOKEN && sub === '/api/lb/top');
+  const allowed = acc.invite || relayOk || relayRead || (acc.room && phoneOk);
   if (!allowed) {
     if (sub.startsWith('/api/') || sub === '/ws') return json({ error: 'Ask the host for the invite code.' }, 401);
     if (isPhone(ua)) return html(MOBILE_HTML.replace('%%MSG%%', ''));

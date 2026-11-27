@@ -64,3 +64,6 @@ img.kba-logo { display: block; height: 72px; width: auto; object-fit: contain; f
 .rs-head .wordmark { height: 96px; }
 #calib > .wordmark, #sync > .wordmark { position: absolute; left: 36px; top: 16px; height: 96px; z-index: 2; }
 img.kba-logo, .kba-logo { /* kept as alias */ }
+
+/* v13.16: the leaderboard is a headline feature */
+.ks-small.ks-lbbtn { font-size: 4.4vh; color: #1a0026; border: .4vh solid #ffe27a; background: linear-gradient(180deg, #fffbe6, #ffd75e 55%, #ffb52e); box-shadow: 0 0 40px rgba(255,215,94,.55); }

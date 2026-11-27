@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var CFG = window.KARAOKE_CONFIG;
-  var BUILD = 'v13.15.2';
+  var BUILD = 'v13.16';
   var DEV = window.KaraokeDev = { overlay: true, tiles: true, feedback: true, lyrics: true, hud: true, bg: true };
   var S = window.KaraokeScoring;
   var $ = function (id) { return document.getElementById(id); };
@@ -366,6 +366,7 @@
   }
   function renderPreviewCard() {
     if (!song) return; var L = libOf(song);
+    if (window.KBA_RANK) try { KBA_RANK.select(song.id, playKind()); } catch (e) {}   // v13.16 world top 3 on song select
     var img = $('pvArt'); var u = SONG_BASE + song.id + '/art.webp'; if (img.getAttribute('src') !== u) img.src = u;
     $('pvTitle').textContent = song.title; $('pvArtist').textContent = song.artist;
     $('pvChips').innerHTML = [L && L.year > 1900 ? String(L.year) : '', L ? GENRE_NAME[L.genre] || '' : '', fmt(song.duration), FAVS[song.id] ? '\u2665 Favorite' : ''].filter(Boolean).map(function (c) { return '<span>' + esc(c) + '</span>'; }).join('');
@@ -1093,6 +1094,7 @@
     applyGuide();
     showGuide();
     wsSend({ type: 'state', state: 'playing', song: song.id, mode: G.mode, players: G.slots.map(function (s) { return { slot: s, name: pname(s), color: pcolor(s) }; }) });
+    if (window.KBA_RANK && !(window.KBA_ON && KBA_ON.active)) try { KBA_RANK.pre(song.id, G.kind); } catch (e) {}   // v13.16 "beat the world #1" banner
     requestAnimationFrame(loop);
   }
   // ---------- v13.11: warm-up + first-open telemetry ----------
@@ -1388,7 +1390,7 @@
     $('noteBars').innerHTML = bars.join('');
     $('resMeta').textContent = '\ud83e\udd41 Beat mode · ' + PLAY_NAME['beat-' + br.diff].split(' · ')[1] + ' · ' + Math.round(br.bpm) + ' bpm · best combo ' + br.maxCombo + ' · ' + br.total + ' beats' + timingText(br, learned);
     show('results');
-    wsSend({ type: 'state', state: 'results', score: br.score });
+    var pack = kbaPack('beat', [{ slot: 0, name: String(G.beatName || 'Drummer').replace(/^\S+\s/, ''), score: br.score, rhythm: typeof accPct === 'function' ? accPct(br.counts) : null, combo: br.maxCombo, av: avatarFor(1) }]); wsSend({ type: 'state', state: 'results', score: br.score, web: pack, cards: pack.cards });
   }
   function timingText(br, learned) {
     if (br.hits < 12) return '';
@@ -1422,7 +1424,7 @@
     var voiced = scorer.frames.filter(function (x) { return x.f > 0; }).length;
     $('resMeta').textContent = 'Best combo ' + r.maxCombo + ' · ' + scorer.frames.length + ' pitch frames received from the phone (' + voiced + ' voiced)' + (br ? ' · \ud83e\udd41 Beat ' + br.score + ' (' + br.diff + ', ' + br.counts.Perfect + ' perfect)' + timingText(br, learned) : '');
     show('results');
-    wsSend({ type: 'state', state: 'results', score: r.score });
+    var sl = (G.slots && G.slots[0]) || 1, pack = kbaPack('sing', [{ slot: sl, name: pname(sl), color: slotColor(sl), av: avatarFor(sl), score: r.score, pitch: accPct(r.counts), combo: r.maxCombo }]); wsSend({ type: 'state', state: 'results', score: r.score, web: pack, cards: pack.cards });
   }
   // ---------- v13.9 RESULTS: winner reveal -> multiplayer table, solo grade card. Real scorer data only (no invented numbers). ----------
   var SLOT_COLOR = ['#ff3fa4', '#3ff2ff', '#ffd75e', '#59ffa8'] /* = server/phone COLORS by slot */, RS = { btns: [], idx: 0, phase: '', timer: 0, kind: '' };
@@ -1522,6 +1524,18 @@
     R.classList.remove('rev'); void R.offsetWidth; R.classList.add('rev');
   }
   function grade(v) { return v >= 90 ? 'S' : v >= 75 ? 'A' : v >= 60 ? 'B' : v >= 40 ? 'C' : 'D'; }
+  function kbaPack(kind, rows) {
+    var list = (rows || []).map(function (r, i) {
+      var sc = Math.max(0, Math.min(100, Math.round(+r.score || 0)));
+      return { slot: r.slot || (i + 1), name: r.name, color: r.color || '', av: r.av || ('img/av' + (i % 8) + '.webp'), score: sc, grade: sc >= 90 ? 'S' : sc >= 75 ? 'A' : sc >= 60 ? 'B' : sc >= 40 ? 'C' : 'D', stars: sc >= 90 ? 5 : sc >= 75 ? 4 : sc >= 60 ? 3 : sc >= 40 ? 2 : 1, pitch: r.pitch == null ? null : Math.round(r.pitch), rhythm: r.rhythm == null ? null : Math.round(r.rhythm), combo: r.combo == null ? null : r.combo, late: !!r.late };
+    });
+    var order = list.slice().sort(function (a, b) { return b.score - a.score || a.slot - b.slot; }), last = 0, i;
+    for (i = 0; i < order.length; i++) { if (!i || order[i].score < order[i - 1].score) last = i + 1; order[i]._r = last; }
+    var top = order[0] && order[0].score, one = order.filter(function (x) { return x.score === top; }).length === 1;
+    var art = (window.KARAOKE_CONFIG && KARAOKE_CONFIG.server ? KARAOKE_CONFIG.server : '') + '/songs/' + song.id + '/art.webp';
+    list.forEach(function (r) { var o = order.filter(function (x) { return x.slot === r.slot; })[0]; r.rank = o._r; r.won = list.length > 1 && one && r.score === top; r.kind = kind; r.song = song.id; r.title = song.title; r.artist = song.artist || ''; r.art = art; });
+    return { kind: kind, song: song.id, title: song.title, rows: list.filter(function (r) { return !r.late; }).map(function (r) { return { name: r.name, score: r.score }; }), cards: list };
+  }
   // Duet: singer(s) on the phone(s) + the controller/remote player on the beat highway, one combined results screen
   function finishDuet(br, learned) {
     var rows = G.slots.map(function (sl) { var r = G.scorers[sl].finish(); return { slot: sl, name: pname(sl), color: slotColor(sl), av: avatarFor(sl), score: r.score, pitch: accPct(r.counts), rhythm: null, combo: r.maxCombo }; });
@@ -1532,7 +1546,7 @@
     rsShowMulti(rows, 'DUET \u2022 SING + BEAT \u2022 TEAM ' + team + timingText(br, learned).replace(' \u00b7 ', ' \u2022 ').toUpperCase(), rows.length > 1 && rows[0].score > rows[1].score);
     addPoints(team * 10);
     show('results');
-    wsSend({ type: 'state', state: 'results', score: team });
+    var pack = kbaPack('duet', rows); wsSend({ type: 'state', state: 'results', score: team, web: pack, cards: pack.cards });
   }
   function finishMulti() {
     var rows = G.slots.map(function (sl) { var r = G.scorers[sl].finish(); return { slot: sl, score: r.score, counts: r.counts, combo: r.maxCombo, late: G.late && G.late[sl] ? G.late[sl] : null }; });
@@ -1544,7 +1558,8 @@
     addPoints(rows[0].score * 10);
     show('results');
     var scores = {}; rows.forEach(function (x) { scores[x.slot] = x.score; });
-    wsSend({ type: 'state', state: 'results', score: rows[0].score, scores: scores, winner: battle && !tie ? rows[0].slot : 0, winnerName: battle && !tie ? pname(rows[0].slot) : '' });
+    var pack = kbaPack('sing', rows.map(function (x) { return { slot: x.slot, name: pname(x.slot), color: slotColor(x.slot), av: avatarFor(x.slot), score: x.score, pitch: accPct(x.counts), combo: x.combo, late: !!x.late }; }));
+    wsSend({ type: 'state', state: 'results', score: rows[0].score, scores: scores, winner: battle && !tie ? rows[0].slot : 0, winnerName: battle && !tie ? pname(rows[0].slot) : '', web: pack, cards: pack.cards });
   }
   function goHome() { if (REC.active) return recEnd(); if (REC.preview) return previewEnd(); if (beat) { beat.destroy(); beat = null; } if (audio.release) audio.release(); paused = false; $('game').classList.remove('paused'); if (screen === 'game' && !finished) logPlay(); audio.pause(); stopGuide(); show('home'); wsSend({ type: 'state', state: 'home' }); }
   audio.addEventListener('ended', function () { if (screen === 'game') finish(); else if (screen === 'calib') endCalibration(); });

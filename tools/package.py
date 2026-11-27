@@ -16,7 +16,7 @@ shutil.rmtree(dist, ignore_errors=True)
 (app / 'songs/calibration').mkdir(parents=True)
 for f in ['beeps.wav', 'calibration.json']:
     shutil.copy(ROOT / 'songs/calibration' / f, app / 'songs/calibration' / f)
-for f in ['index.html', 'style.css', 'app.js', 'queue.js', 'engine.js', 'lane.js', 'beat.js', 'config.js', 'config.xml', 'icon.png']:
+for f in ['index.html', 'style.css', 'app.js', 'queue.js', 'engine.js', 'lane.js', 'beat.js', 'rank.js', 'config.js', 'config.xml', 'icon.png']:
     shutil.copy(ROOT / 'tv' / f, app / f)
 (app / 'img').mkdir()
 for f in (ROOT / 'tv/img').iterdir():

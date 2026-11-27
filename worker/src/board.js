@@ -20,6 +20,9 @@ export class Board extends DurableObject {
   top(song, kind, n = 10) {
     return this.rows(`SELECT name, MAX(score) AS score, MIN(at) AS at FROM (SELECT name, nkey, score, at FROM scores WHERE song=? AND kind=?) GROUP BY nkey ORDER BY score DESC, at ASC LIMIT ?`, song, kind, n);
   }
+  ordered(song, kind) {   // every player's best on a song, best first (same order as top())
+    return this.rows(`SELECT name, nkey, MAX(score) AS score, MIN(at) AS at FROM (SELECT name, nkey, score, at FROM scores WHERE song=? AND kind=?) GROUP BY nkey ORDER BY score DESC, at ASC`, song, kind);
+  }
   overall(n = 20) {
     return this.rows(`SELECT name, SUM(best) AS total, COUNT(*) AS songs, MAX(best) AS best FROM (SELECT nkey, MAX(name) AS name, song, kind, MAX(score) AS best FROM scores GROUP BY nkey, song, kind) GROUP BY nkey ORDER BY total DESC LIMIT ?`, n);
   }
@@ -37,13 +40,26 @@ export class Board extends DurableObject {
     const u = new URL(req.url), p = u.pathname, J = o => Response.json(o, { headers: { 'Cache-Control': 'no-store' } });
     if (p === '/submit' && req.method === 'POST') {
       const b = await req.json(), now = Date.now(), out = [];
+      const before = new Map(this.ordered(b.song, b.kind).map((r, i) => [r.nkey, i + 1]));   // standings before this play (for the rank-up animation)
       for (const r of b.rows) {
         const k = nkey(r.name);
         const prev = this.rows('SELECT MAX(score) AS s FROM scores WHERE song=? AND kind=? AND nkey=?', b.song, b.kind, k)[0].s;
         const songBest = this.rows('SELECT MAX(score) AS s FROM scores WHERE song=? AND kind=?', b.song, b.kind)[0].s;
         this.sql.exec('INSERT INTO scores (name, nkey, song, kind, score, at, room) VALUES (?,?,?,?,?,?,?)', r.name, k, b.song, b.kind, r.score, now, b.room || '');
         const rank = this.rows('SELECT COUNT(*) AS c FROM (SELECT nkey, MAX(score) AS s FROM scores WHERE song=? AND kind=? GROUP BY nkey) WHERE s > ?', b.song, b.kind, r.score)[0].c + 1;
-        out.push({ name: r.name, score: r.score, prevBest: prev, personalBest: prev == null || r.score > prev, songRecord: songBest == null || r.score > songBest, rank });
+        out.push({ name: r.name, score: r.score, prevBest: prev, personalBest: prev == null || r.score > prev, songRecord: songBest == null || r.score > songBest, rank, _k: k });
+      }
+      // v13.16 rank-up: where each player's BEST now sits (position in the same ordering the Top lists use), who is around them, who they passed
+      const after = this.ordered(b.song, b.kind);
+      for (const o of out) {
+        const i = after.findIndex(x => x.nkey === o._k), pos = i + 1, pp = before.get(o._k) || null;
+        o.pos = pos; o.total = after.length; o.prevPos = pp; o.bestScore = after[i].score;
+        o.passed = pp ? Math.max(0, pp - pos) : Math.max(0, after.length - pos);
+        o.up = i > 0 ? { rank: i, name: after[i - 1].name, score: after[i - 1].score } : null;
+        const lo = Math.max(0, Math.min(i - 3, after.length - 7));
+        o.near = after.slice(lo, lo + 7).map((x, j) => ({ rank: lo + j + 1, name: x.name, score: x.score, av: avatarOf(x.name), me: x.nkey === o._k }));
+        o.top3 = after.slice(0, 3).map((x, j) => ({ rank: j + 1, name: x.name, score: x.score, av: avatarOf(x.name) }));
+        delete o._k;
       }
       return J({ results: out, top: this.top(b.song, b.kind, 5) });
     }

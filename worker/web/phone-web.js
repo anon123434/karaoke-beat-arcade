@@ -58,7 +58,7 @@
     var t = document.getElementById('turn');
     if (t && lastCard && lastCard._hs) {
       var r = lastCard._hs;
-      t.textContent = r.songRecord ? '🏆 NEW HIGH SCORE! ' + r.score : r.personalBest ? '⭐ Personal best! ' + r.score : '';
+      t.textContent = r.songRecord ? '🏆 NEW WORLD #1! ' + r.score : r.personalBest ? '⭐ Personal best! ' + r.score + (r.pos ? ' · #' + r.pos + ' worldwide' : '') : (r.up ? '🎯 #' + r.up.rank + ' to beat: ' + r.up.score + ' pts' : r.pos === 1 ? '👑 You hold #1' : '');
     }
   }
 
