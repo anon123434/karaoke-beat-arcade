@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping! This is a small hobby project, so keep it simple.
+Thanks for helping! This is a small hobby project, so keep it simple. Coding agents should read [AGENTS.md](AGENTS.md) first.
 
 * **Never commit music** (audio, stems, lyrics, cover art) for songs you do not own, or any library data for them. `songs/` is
   git-ignored except for the demo songs; please do not force-add anything.

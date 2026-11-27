@@ -8,6 +8,7 @@
     "song": "node tools/build-song.js",
     "cert": "sh tools/make-cert.sh",
     "start": "node server/index.js",
+    "dev": "sh tools/dev.sh",
     "test": "node --test test/*.test.js",
     "check:browser": "node tools/check-browser.mjs",
     "package": "python3 tools/package.py",

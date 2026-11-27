@@ -9,9 +9,11 @@ leaderboard and online 1v1 matches on the optional hosted Worker.
 
 ![Song select screen with the two demo songs](docs/screenshot-song-select.jpg)
 
-> **No songs are included.** The repo only contains two self-made demo songs (public-domain melodies with an original
-> synthesised piano backing) and a few calibration beeps. You must only add music you own or have the rights to use.
-> See [songs/README.md](songs/README.md).
+> **No copyrighted songs are included.** The repo ships two self-made demos (public-domain melodies with an original
+> synthesised piano backing) plus a few calibration beeps, so you can play immediately. You must only add music you own
+> or have the rights to use. See [songs/README.md](songs/README.md).
+
+Coding agents should start at [AGENTS.md](AGENTS.md) (Claude Code: [CLAUDE.md](CLAUDE.md)).
 
 ## What is in here
 
@@ -31,27 +33,30 @@ leaderboard and online 1v1 matches on the optional hosted Worker.
  mic -> YIN pitch (on phone) --wss--> pairing + relay (one TV, up to 4 phones) --ws--> audio, lyrics, pitch lane, scoring
 ```
 
-## Quick start (browser, 2 minutes)
+## Quick start (browser, no TV or Cloudflare required)
 
-Requires Node 20+.
+Requires **Node 20+**. Python, ffmpeg and a signing certificate are not needed to play the demos.
 
 ```sh
 npm install
-npm test                                  # unit + integration tests (makes a throwaway self-signed cert if certs/ is empty)
-KARAOKE_HOST=<your LAN IP> npm start      # HTTP :8780 for the TV, HTTPS :8743 for phones
-# open http://<your LAN IP>:8780/tv/ on the TV / a browser, scan the QR with a phone
+npm run dev          # starts the local server; creates a throwaway cert if certs/ is empty
 ```
 
-`KARAOKE_HOST` is the address phones use to reach this machine; if unset it is auto-detected from the first LAN
-interface. Phones need **HTTPS** for the microphone, so create a certificate your phone trusts once:
+Open **http://127.0.0.1:8780/tv/** in a browser. You should see the two demo songs. Click a song, click **PLAY**, then
+confirm once more to start without a phone mic (the first confirm warns that scoring needs a mic).
+
+`npm start` is the same server without the dev banner. `KARAOKE_HOST` is the address phones use to reach this machine;
+if unset it is auto-detected from the first LAN interface.
+
+Phones need **HTTPS** they trust for the microphone. Install [mkcert](https://github.com/FiloSottile/mkcert) (`brew install mkcert`
+on macOS, or see mkcert's install notes for Linux/Windows), then:
 
 ```sh
-brew install mkcert            # or your package manager
 KARAOKE_HOST=<your LAN IP> npm run cert    # writes certs/ (git-ignored), copies the public rootCA.pem
 ```
 
-Open `http://<your LAN IP>:8780/ca` on the phone, install and trust the profile (iOS: Settings > General > About >
-Certificate Trust Settings). Or skip all this by using the hosted Worker below, which gives phones real HTTPS.
+Open `http://<your LAN IP>:8780/ca` on the phone and trust the profile (iOS: Settings → General → About →
+Certificate Trust Settings). Or skip local certificates by using the hosted Worker below, which gives phones real HTTPS.
 
 ### Configuration (environment variables)
 
@@ -86,8 +91,10 @@ Certificate Trust Settings). Or skip all this by using the hosted Worker below, 
 
 ## Adding your songs
 
-See [songs/README.md](songs/README.md) for the folder format and the ingest pipeline (Demucs vocal separation, word-timed
-lyrics via LRCLIB, melody extraction). Then `npm run index`. Nothing under `songs/` except the demos is ever committed.
+See [songs/README.md](songs/README.md) for the folder format and the ingest pipeline. Then `npm run index`. Nothing under
+`songs/` except the demos should be committed. The automatic path needs **ffmpeg**, a Python venv, Demucs, faster-whisper
+and librosa; the first install is heavy and a CPU vocal split can take several minutes per song. Use `--no-install` on
+`npm run ingest` so it does not try to package or install a Tizen widget.
 
 ## Hosted web version (Cloudflare Worker, optional)
 
@@ -123,6 +130,7 @@ Phones then scan `<origin>/kba/j/<room>`. If the Worker is unreachable the serve
 ## Development
 
 ```sh
+npm run dev                # local server + browser URL (KTV_CLOUD=0)
 npm test                   # node --test: scoring, pitch, server relay, queue, song files
 npm run lint               # syntax check of the main entry points
 npm run check:browser      # headless E2E with Playwright (npx playwright install chromium first)
@@ -130,7 +138,7 @@ npm run check:browser      # headless E2E with Playwright (npx playwright instal
 
 `tools/` also has many `check-*.mjs`, `perf-*.mjs` and `shot*.mjs` scripts used during development. They drive the app with
 Playwright and a synthetic microphone; some assume a larger library than the two demo songs and may need small tweaks.
-See [CONTRIBUTING.md](CONTRIBUTING.md) and `docs/SCORING.md`.
+See [AGENTS.md](AGENTS.md), [CONTRIBUTING.md](CONTRIBUTING.md) and `docs/SCORING.md`.
 
 ## License
 
