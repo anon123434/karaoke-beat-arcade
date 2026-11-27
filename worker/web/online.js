@@ -98,7 +98,7 @@
   function onLobby(m) {
     if (m.type === 'created' || m.type === 'matched' || m.type === 'error' || m.type === 'taken' || m.type === 'expired') busyOff();
     if (m.type === 'welcome') { if (m.spin && m.spin.length) spinList = m.spin; me.name = m.you.name; me.av = m.you.av; if (m.you.banned) toast('Online play is off for this name.', 4000); loadRecord(); }
-    else if (m.type === 'list') { lobby = m; if (S.v === 'lobby') renderLobby(true); else if (S.v === 'waiting') { var e = st.querySelector('#konOnline'); if (e) e.textContent = '🌎 ' + m.online + ' online'; } }
+    else if (m.type === 'list') { lobby = m; if (S.v === 'lobby') renderLobby(true); else if (S.v === 'waiting') simRefresh(); }
     else if (m.type === 'created') { S = { v: 'waiting', id: m.id, song: m.song, title: m.title, artist: m.artist, d: m.d, quick: m.quick, since: Date.now() }; showWaiting(); }
     else if (m.type === 'matched') { closeLobby(); startMatch(m); }
     else if (m.type === 'expired') { toast('Nobody joined in 10 minutes. Try Quick Match!', 3500); showLobby(); }
@@ -108,8 +108,28 @@
   function loadRecord() { var x = new XMLHttpRequest(); x.open('GET', BASE + '/api/online/record?name=' + encodeURIComponent(me.name)); x.onload = function () { try { rec = JSON.parse(x.responseText); var e = st.querySelector('#konRec'); if (e) e.innerHTML = recHtml(); } catch (e) {} }; x.send(); }
   function recHtml() { return rec ? '<span class="gr">' + rec.w + ' W</span> · <span class="pk">' + rec.l + ' L</span>' + (rec.d ? ' · <span class="dim">' + rec.d + ' D</span>' : '') : '<span class="dim">–</span>'; }
 
+  // ---------- simulated "people online" (client-side only: no DO calls, no extra requests) ----------
+  // Starts from a 10-minute time-seeded value (1..33) so screens agree, then drifts by 1-3 every 20-60 s, clamped to 1..33 (never 0).
+  // If the real lobby count is ever higher, the real count wins.
+  var SIM = { n: 0, next: 0 }, simT = null;
+  function simSeed() { var k = Math.floor(Date.now() / 600000), x = (k * 2654435761) >>> 0; x ^= x >>> 15; x = Math.imul(x, 2246822519) >>> 0; x ^= x >>> 13; return 1 + (x % 33); }
+  function simTick() {
+    var now = Date.now();
+    if (!SIM.n) { SIM.n = simSeed(); SIM.next = now + 20000 + Math.random() * 40000; }
+    var g = 0; while (now >= SIM.next && g++ < 40) {
+      var d = 1 + Math.floor(Math.random() * 3), up = Math.random() < 0.5;
+      if (SIM.n + 4 > 33) up = Math.random() < 0.2; else if (SIM.n - 4 < 1) up = Math.random() < 0.8;
+      SIM.n = Math.max(1, Math.min(33, SIM.n + (up ? d : -d)));
+      SIM.next += 20000 + Math.random() * 40000;
+    }
+    if (SIM.next < now) SIM.next = now + 20000 + Math.random() * 40000;
+  }
+  function onlineN() { simTick(); return Math.max(1, SIM.n, (lobby && lobby.online) || 0); }
+  function onlineTxt() { return '\uD83C\uDF0E ' + onlineN() + ' online'; }
+  function simRefresh() { var e = st && st.querySelector('#konOnline'); if (e && (S.v === 'lobby' || S.v === 'waiting')) { var t = onlineTxt(); if (e.textContent !== t) e.textContent = t; } }
+  function simStart() { if (!simT) simT = setInterval(simRefresh, 5000); }
   // ---------- lobby screen ----------
-  function showLobby() { S = { v: 'lobby' }; renderLobby(false); lsend({ type: 'list' }); }
+  function showLobby() { simStart(); S = { v: 'lobby' }; renderLobby(false); lsend({ type: 'list' }); }
   function renderLobby(keep) {
     var fid = keep && cur() ? cur().getAttribute('data-f') : null;
     var items = (lobby.items || []).filter(function (c) { return c.name !== me.name || true; });
@@ -120,7 +140,7 @@
         '<div style="width:330px;text-align:right"><div class="gd" style="font-size:23px;font-weight:700;margin-bottom:8px">● waiting for 1 opponent</div><div style="display:inline-flex;gap:10px;align-items:center">' + av(c.av, 44) + '<span class="slot"></span><span class="gold" style="font-size:26px;padding:10px 30px;margin-left:12px">Join</span></div></div></div>';
     }).join('');
     paint(LOGO + '<h1>OPEN CHALLENGES<small>Pick a song to sing against someone</small></h1>' +
-      '<div style="position:absolute;right:60px;top:60px"><span class="pill">🌎 ' + (lobby.online || 1) + ' online</span></div>' +
+      '<div style="position:absolute;right:60px;top:60px"><span class="pill" id="konOnline">' + onlineTxt() + '</span></div>' +
       '<div style="position:absolute;left:60px;top:190px;width:1330px"><div class="lbl" style="margin:0 0 14px 10px">' + (items.length ? 'WAITING FOR A SINGER · NEWEST FIRST' : 'NOBODY IS WAITING RIGHT NOW') + '</div>' +
       '<div id="konList" style="height:690px;overflow:hidden;padding:6px">' + (rows || '<div class="glass" style="padding:60px;text-align:center;font-size:34px;line-height:1.5">No open challenges yet.<br><span class="dim" style="font-size:28px">Press <b>Join any game</b> and the next person to arrive plays you,<br>or make a challenge with your favorite song.</span></div>') + '</div></div>' +
       '<div style="position:absolute;left:1430px;top:190px;width:430px;display:flex;flex-direction:column;gap:22px">' +
@@ -185,7 +205,7 @@
   function showWaiting() {
     endPick();
     paint(LOGO + '<h1>WAITING FOR AN OPPONENT<small>' + (S.quick ? 'Quick match · anyone can join' : 'Your challenge is on the list') + '</small></h1>' +
-      '<div style="position:absolute;right:60px;top:60px"><span class="pill" id="konOnline">🌎 ' + (lobby.online || 1) + ' online</span></div>' +
+      '<div style="position:absolute;right:60px;top:60px"><span class="pill" id="konOnline">' + onlineTxt() + '</span></div>' +
       '<div class="glass" style="position:absolute;left:260px;right:260px;top:210px;height:680px">' +
       '<div style="position:absolute;left:60px;top:40px">' + art(S.song, 250) + '</div>' +
       '<div style="position:absolute;left:350px;top:56px;right:40px"><div style="font-size:54px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(S.title) + '</div><div style="font-size:30px;color:#fffc;margin-top:6px">' + esc(S.artist) + ' · ' + fmt(S.d) + ' · Live pitch</div><div class="gd" style="font-size:26px;margin-top:24px">1 vs 1 · highest score wins</div></div>' +
