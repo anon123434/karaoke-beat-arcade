@@ -1,0 +1,34 @@
+{
+  "name": "karaoke-beat-arcade",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Karaoke Beat Arcade: pitch-scored karaoke for a Samsung Tizen TV (or any browser) with phones as microphones.",
+  "type": "commonjs",
+  "scripts": {
+    "song": "node tools/build-song.js",
+    "cert": "sh tools/make-cert.sh",
+    "start": "node server/index.js",
+    "test": "node --test test/*.test.js",
+    "check:browser": "node tools/check-browser.mjs",
+    "package": "python3 tools/package.py",
+    "tv:install": "python3 tools/tv.py install",
+    "tv:launch": "python3 tools/tv.py launch",
+    "ingest": "python3 tools/ingest-batch.py",
+    "ingest:incoming": "python3 tools/ingest-batch.py --incoming",
+    "index": "node tools/build-index.js",
+    "lint": "node --check server/index.js && node --check tv/app.js && node --check phone/phone.js",
+    "worker:build": "cd worker && npm run build",
+    "pretest": "sh tools/test-cert.sh"
+  },
+  "dependencies": {
+    "ws": "^8.18.0",
+    "qrcode": "^1.5.4"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

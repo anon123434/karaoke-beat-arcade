@@ -1,0 +1,60 @@
+# Copy to wrangler.toml and fill in the placeholders. wrangler.toml is git-ignored.
+name = "kba-worker"                      # your Worker's name
+# account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID"   # or set CLOUDFLARE_ACCOUNT_ID in your environment
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true                       # serve on <name>.<your-subdomain>.workers.dev; set false when you use your own route below
+preview_urls = false
+
+# Optional: serve from your own domain (the zone must be on your Cloudflare account).
+# routes = [{ pattern = "karaoke.example.com/*", zone_name = "example.com" }]
+
+# Static assets: `npm run build` assembles ./public from the repo's tv/, phone/, shared/, songs/ and the web patches in ./web.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
+html_handling = "none"
+not_found_handling = "none"
+
+# Workers AI (speech-to-text fallback used by the phone mic page). Remove this block (and the STT path) if you don't want it.
+[ai]
+binding = "AI"
+
+[[durable_objects.bindings]]
+name = "ROOM"
+class_name = "Room"
+
+[[durable_objects.bindings]]
+name = "BOARD"
+class_name = "Board"
+
+[[durable_objects.bindings]]
+name = "LOBBY"
+class_name = "Lobby"
+
+[[durable_objects.bindings]]
+name = "MATCH"
+class_name = "Match"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room", "Board"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Lobby", "Match"]
+
+# Feature flags ("1" = on).
+[vars]
+ONLINE_ENABLED = "0"          # online 1v1 matches
+LB_PANEL_ENABLED = "1"        # World Top 5 panel on song select
+ONLINE_DAILY_CAP = "300"      # max online matches per UTC day
+ONLINE_BANS = ""              # comma-separated names to refuse in the online lobby
+
+# Secrets are NOT set here. Use:  npx wrangler secret put INVITE_CODE | SECRET | RELAY_TOKEN
+# (or a local, git-ignored worker/.dev.vars file for `wrangler dev`)
+
+[observability]
+enabled = true

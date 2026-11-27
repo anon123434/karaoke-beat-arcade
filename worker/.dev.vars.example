@@ -1,0 +1,4 @@
+# Copy to .dev.vars for `wrangler dev` (git-ignored). Use your own values. INVITE_CODE must be digits only (max 6, the gate screen is a numeric keypad); SECRET and RELAY_TOKEN should be long random strings.
+INVITE_CODE=123456
+SECRET=generate-a-long-random-string
+RELAY_TOKEN=generate-another-long-random-string

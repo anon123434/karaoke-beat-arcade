@@ -1,0 +1,17 @@
+{
+  "name": "kba-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Worker for Karaoke Beat Arcade: hosted web build, phone join, online 1v1, leaderboard.",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs && wrangler dev",
+    "deploy": "node build.mjs && wrangler deploy"
+  },
+  "license": "MIT",
+  "type": "module",
+  "devDependencies": {
+    "qrcode": "^1.5.4",
+    "wrangler": "^4.168.0"
+  }
+}

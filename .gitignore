@@ -1,0 +1,31 @@
+# local state, secrets, builds
+.local/
+certs/
+node_modules/
+dist/
+*.log
+*.wgt
+.env
+.env.*
+.dev.vars
+.venv-ingest/
+__pycache__/
+*.pyc
+.DS_Store
+._*
+# Tizen signing material
+*.p12
+*.pfx
+author.crt
+distributor.crt
+
+# Songs: NEVER commit music. Only the self-made demo songs and the calibration beeps are tracked.
+songs/*
+!songs/README.md
+!songs/index.json
+!songs/calibration/
+!songs/twinkle/
+!songs/amazing-grace/
+songs/library.json
+data/*
+!data/library-meta.txt

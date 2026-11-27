@@ -1,0 +1,34 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Scores · NOW! Karaoke Beat Arcade</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;color:#fff;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:radial-gradient(120% 90% at 50% 0%,#3a0f7a 0%,#12052e 55%,#07021a 100%) fixed}
+header{display:flex;align-items:center;gap:24px;padding:28px 4vw}.kba-logo{height:64px;width:auto}
+h1{margin:0;font-size:clamp(36px,5vw,80px);font-weight:900;background:linear-gradient(90deg,#ffe27a,#ff9f1c);-webkit-background-clip:text;background-clip:text;color:transparent}
+#back{font-size:clamp(22px,2.4vw,40px);font-weight:900;padding:.4em 1.2em;border-radius:99px;border:0;color:#1a0026;background:linear-gradient(180deg,#ffe27a,#ffb52e);cursor:pointer}
+#back:focus,#back:hover{outline:none;box-shadow:0 0 0 8px #fff,0 0 50px rgba(255,215,94,.9)}
+main{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:24px;padding:0 4vw 40px}
+section{background:linear-gradient(160deg,rgba(255,255,255,.12),rgba(255,255,255,.03)),rgba(18,7,44,.7);border:2px solid rgba(255,255,255,.16);border-radius:28px;padding:20px 22px}
+h2{margin:0 0 12px;font-size:clamp(24px,2.4vw,40px)}
+ol{list-style:none;margin:0;padding:0}li{display:flex;gap:14px;align-items:center;font-size:clamp(18px,1.8vw,30px);padding:8px 10px;border-radius:14px}
+li:nth-child(1){background:rgba(255,215,94,.18)}li b{width:2em;color:#ffd75e}li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}li i{font-style:normal;font-weight:900}li small{opacity:.7;font-size:.7em;display:block}
+.empty{opacity:.7;font-size:24px}
+</style></head><body>
+<header><button id="back" autofocus>◀ Back</button><img class="kba-logo" src="/kba/web/m/logo.webp" alt="NOW! Karaoke Beat Arcade"><h1>🏆 Scores</h1></header>
+<main><section><h2>👑 All-time stars</h2><ol id="all"><li class="empty">Sing a song to get on the board!</li></ol></section>
+<section><h2>🎵 Song champions</h2><ol id="songs"></ol></section>
+<section><h2>⏱ Just now</h2><ol id="recent"></ol></section>
+<section id="onA" style="display:none"><h2>⚔ Online 1v1 · most wins</h2><ol id="onTop"></ol></section>
+<section id="onB" style="display:none"><h2>🥊 Latest duels</h2><ol id="onRecent"></ol></section></main>
+<script>
+var I={sing:'🎤',beat:'🥁',duet:'🎤🥁'};function e(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+var b=document.getElementById('back');b.focus();b.onclick=function(){if(history.length>1&&document.referrer)history.back();else location.href='/kba/'};
+document.addEventListener('keydown',function(k){if(k.keyCode===13||k.keyCode===8||k.keyCode===27||k.keyCode===10009||k.keyCode===461){k.preventDefault();b.click()}});
+fetch('/kba/api/lb/overall',{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(d){
+if(d.overall&&d.overall.length)document.getElementById('all').innerHTML=d.overall.map(function(x,i){return'<li><b>'+(i+1)+'</b><span>'+e(x.name)+'<small>'+x.songs+' song'+(x.songs>1?'s':'')+' · best '+x.best+'</small></span><i>'+x.total+'</i></li>'}).join('');
+document.getElementById('songs').innerHTML=(d.songs||[]).map(function(x){return'<li><b>'+(I[x.kind]||'🎤')+'</b><span>'+e(x.title)+'<small>👑 '+e(x.leader)+'</small></span><i>'+x.score+'</i></li>'}).join('')||'<li class="empty">No songs yet</li>';
+document.getElementById('recent').innerHTML=(d.recent||[]).map(function(x){return'<li><b>'+(I[x.kind]||'🎤')+'</b><span>'+e(x.name)+'<small>'+e(x.title)+'</small></span><i>'+x.score+'</i></li>'}).join('')||'<li class="empty">No scores yet</li>';
+}).catch(function(){document.getElementById('all').innerHTML='<li class="empty">😕 Ask to try again</li>'});
+fetch('/kba/api/flags',{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(f){if(!f.online)return;document.getElementById('onA').style.display='';document.getElementById('onB').style.display='';
+return fetch('/kba/api/lb/online',{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(d){
+document.getElementById('onTop').innerHTML=(d.top||[]).map(function(x,i){return'<li><b>'+(i+1)+'</b><span>'+e(x.name)+'<small>'+x.l+' loss'+(x.l===1?'':'es')+(x.d?' · '+x.d+' draw'+(x.d>1?'s':''):'')+'</small></span><i>'+x.w+' W</i></li>'}).join('')||'<li class="empty">No online games yet</li>';
+document.getElementById('onRecent').innerHTML=(d.recent||[]).map(function(x){var w=x.winner?'👑 '+e(x.winner)+(x.forfeit?' (forfeit)':''):'Draw';return'<li><b>⚔</b><span>'+e(x.a)+' vs '+e(x.b)+'<small>'+e(x.title)+' · '+w+'</small></span><i>'+(x.sa==null?'–':x.sa)+'–'+(x.sb==null?'–':x.sb)+'</i></li>'}).join('')||'<li class="empty">No duels yet</li>'})}).catch(function(){});
+</script></body></html>

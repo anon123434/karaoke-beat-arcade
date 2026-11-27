@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920, height=1080, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>NOW! Karaoke Beat Arcade</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="stage">
+  <div class="bg stage-img"></div><div class="bg stage-shade"></div>
+  <div id="busy" class="busy" aria-live="polite"><div class="busy-box"><div class="busy-spin"></div><div class="busy-main"><div id="busyTxt" class="busy-txt"></div><div class="busy-bar"><i id="busyBar"></i></div><div id="busyHint" class="busy-hint"></div><div class="busy-btns"><span id="busyCancel" class="busy-btn">✕ Cancel</span></div></div></div></div>
+
+  <div id="recPanel" class="rec-panel"><div class="rec-box">
+    <div class="rec-title"><span class="rec-dot">&#9679;</span> Record map <span id="recSong" class="rec-song"></span></div>
+    <div id="recStatus" class="rec-status"></div>
+    <div id="recRows" class="rec-rows"></div>
+    <div class="rec-foot"><b>&#9650;&#9660;</b> choose &middot; <b>&#9664;&#9654;</b> change &middot; <b>OK / &#10005;</b> do it &middot; <b>Back / &#9675;</b> leave</div>
+  </div></div>
+  <!-- HOME -->
+  <section id="home" class="screen active">
+    <header class="brand"><img class="wordmark" src="img/logo.webp" alt="NOW! Karaoke Beat Arcade"><div class="tag">Sing it. Hit it. Score it.</div></header>
+    <div class="ss-title">SONG SELECT<span class="eq"><i></i><i></i><i></i><i></i><i></i></span></div>
+    <div id="playerPill" class="player-pill"><img id="ppAv" src="img/av0.webp" alt=""><span id="ppName">Player 1</span><b id="ppPts">0</b><small>PTS</small></div>
+    <div class="home-body">
+      <nav id="catRail" class="cat-rail"></nav>
+      <div class="col-left">
+        <div class="label song-label">CHOOSE A SONG <span id="songCount" class="count"></span><span id="playNow" class="play-now" data-kind="sing">Sing</span><span class="press-top"><b>L2</b> <b>R2</b> play style · <b>OK</b> start · <b>▲▼</b> choose · <b>▲</b> at the top = play style</span></div>
+        <div id="modeSwitch" class="mode-switch"><span data-k="sing">&#127908; Sing</span><span data-k="beat">&#129345; Beat</span><span data-k="duet">&#127925; Duet</span><span data-k="jam">&#127926; Jam</span><span data-k="rec">&#9679; Record</span><em id="msDiff" class="ms-diff"></em><i class="ms-hint"><b>L2</b><b>R2</b></i></div>
+        <div class="search-slot" id="searchSlot"><span class="sb-ico">&#128269;</span><span id="searchHint" class="sb-hint"><b>GREEN</b> or <b>R3</b> type &middot; say it on your phone &#127908;</span></div>
+        <div id="songViewport" class="song-viewport">
+          <div id="searchEmpty" class="search-empty"><div class="se-big">No songs match <b id="seQ"></b></div><div class="se-sub">Check the spelling, try part of a word, or switch category (<b>L1</b>/<b>R1</b>). <b>Back</b> clears the search.</div></div>
+          <div id="songList" class="song-list">
+            <div id="songCard" class="song-card focused">
+              <div class="art"><img class="art-img" alt=""><div class="star">★</div></div>
+              <div class="meta">
+                <div class="title" id="songTitle">Twinkle, Twinkle, Little Star</div>
+                <div class="artist" id="songArtist">Traditional · Piano karaoke</div>
+              </div>
+              <div class="chips"><span class="chip">0:33</span></div>
+              <div class="sc-rate"><span class="bars"><i></i><i></i><i></i><i></i><i></i></span><span class="stars"></span></div>
+              <div class="fav-h">&#9829;</div>
+              <div class="play">▶</div>
+            </div>
+          </div>
+          <div id="fadeTop" class="fade top"></div>
+          <div id="fadeBottom" class="fade bottom"><span id="moreBelow"></span></div>
+          <div id="homeToast" class="toast"></div>
+          <div id="ptrUp" class="ptr-tab up">▲</div><div id="ptrDown" class="ptr-tab down">▼</div>
+        </div>
+        <div class="home-foot" id="homeRow">
+          <div id="calBtn" class="hbtn" data-act="cal"><span class="hb-ico">◎</span><span class="hb-txt"><b>Sync mic</b><small id="calInfo">beep test</small></span></div>
+          <div id="guideBtn" class="hbtn" data-act="guide"><span class="hb-ico">♫</span><span class="hb-txt"><b>Guide</b><small id="guideBtnVal">Full</small></span></div>
+          <div id="modeBtn" class="hbtn" data-act="mode"><span class="hb-ico">⚔</span><span class="hb-txt"><b>Mode</b><small id="modeBtnVal">Party</small></span></div>
+          <div id="phoneBtn" class="hbtn" data-act="phone"><span class="hb-ico">＋</span><span class="hb-txt"><b>Add phone</b><small id="phoneBtnVal">show setup QR</small></span></div>
+          <div id="syncBtn" class="hbtn" data-act="sync"><span class="hb-ico">⏱</span><span class="hb-txt"><b>Beat sync</b><small id="syncBtnVal">tap test</small></span></div>
+          <div id="playBtn" class="hbtn" data-act="play"><span class="hb-ico">🥁</span><span class="hb-txt"><b>Play</b><small id="playBtnVal">Sing</small></span></div>
+          <div id="searchBtn" class="hbtn" data-act="search"><span class="hb-ico">&#128269;</span><span class="hb-txt"><b>Search</b><small>GREEN / R3</small></span></div>
+        </div>
+      </div>
+      <div class="col-right">
+        <div id="pvCard" class="pv-card">
+          <div class="pv-art"><img id="pvArt" alt=""><span id="pvEq" class="pv-eq"><i></i><i></i><i></i><i></i></span></div>
+          <div id="pvTitle" class="pv-title"></div>
+          <div id="pvArtist" class="pv-artist"></div>
+          <div id="pvChips" class="pv-chips"></div>
+          <div class="pv-diff"><span class="pv-l">BEAT</span><span id="pvBars" class="bars"><i></i><i></i><i></i><i></i><i></i></span><span class="pv-l">VOCAL</span><span id="pvStars" class="stars"></span></div>
+          <div id="pvMode" class="pv-mode"></div>
+          <div id="pvPlay" class="pv-play">&#9654; PLAY</div>
+        </div>
+        <div class="qr-panel">
+          <div class="qr-row">
+            <div class="qr-wrap"><div id="qr" class="qr"><div class="qr-wait">Connecting to server…</div></div></div>
+            <div class="qr-side">
+              <div class="label">PHONE MIC</div>
+              <div class="scan">Scan with the iPhone Camera</div>
+              <div class="qr-url" id="qrUrl"></div>
+              <div id="phoneStatus" class="status-pill">● Waiting for phone</div>
+              <div class="players-home" id="playersHome"></div>
+              <div class="mode-home" id="modeHome"></div>
+            </div>
+          </div>
+          <div class="ca" id="caBox"><div id="caQr" class="qr small"></div><div class="ca-text"><b>First time?</b> Scan this to trust the NOW! Karaoke Beat Arcade certificate, then the mic QR. <span id="caUrl"></span></div></div>
+          <div class="setup-hint" id="setupHint"></div>
+        </div>
+      </div>
+    </div>
+    <div class="hint-bar"><span><b class="ps x">&#10005;</b> Select</span><span><b class="ps o">&#9675;</b> Back</span><span><b class="ps t">&#9651;</b> Difficulty</span><span><b class="ps s">&#9633;</b> Favorites</span><span><b>L1</b><b>R1</b> Category</span><span class="sep"></span><span><b>GREEN</b>/<b>R3</b> Search</span><span><b>L2</b><b>R2</b> Mode</span><span class="hb-remote">Remote: <b>&#9664;</b> categories · <b>&#9654;</b> songs · <b>&#9650;</b> top = mode</span></div>
+    <div id="searchOverlay" class="search-overlay" aria-hidden="true">
+      <div class="so-dim"></div>
+      <div id="searchBar" class="search-bar so-panel"><span class="sb-ico">&#128269;</span><input id="searchInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="40" placeholder="Search title or artist"><span class="sb-hint"><b>OK</b> keyboard &middot; <b>&#9660;</b> or <b>Back</b> done</span></div>
+    </div>
+  </section>
+
+  <!-- GAME -->
+  <section id="game" class="screen">
+    <div class="g-logo"><img class="wordmark" src="img/logo.webp" alt="NOW! Karaoke Beat Arcade"></div>
+    <div id="gPill" class="g-pill"></div>
+    <div class="g-songbar"><img id="gsArt" src="" alt=""><div class="gs-t"><b id="gsTitle"></b><span id="gsArtist"></span></div><div class="gs-prog"><i id="gsBar"></i></div><span id="gsTime" class="gs-time">0:00 / 0:00</span></div>
+    <div class="g-singer"><div class="gsg-h"><img id="gsgAv" src="img/av0.webp" alt=""><span>SINGER</span><b id="gsgP">P1</b><i id="gsgTag" class="gsg-tag"></i></div></div>
+    <div class="g-bigcombo" id="gBigCombo"><b id="gbcN">0</b><span>COMBO!</span></div>
+    <div class="p-cards" id="pCards"></div>
+    <div class="g-qr" id="gQr"><div id="gQrSvg"></div><span>Scan to join</span></div>
+    <div class="g-panels">
+      <div class="gp"><small>SCORE</small><b id="gpScore">0</b></div>
+      <div class="gp gp-combo"><small>COMBO</small><b id="gpCombo">&times;0</b><i id="gpMax"></i></div>
+      <div class="gp gp-acc"><small>ACCURACY</small><b id="gpAcc">&ndash;</b><u><s id="gpAccBar"></s></u></div>
+    </div>
+    <div class="hud">
+      <div class="hud-song"><div class="hud-title">Twinkle, Twinkle, Little Star</div><div class="hud-sub" id="hudPhone">iPhone mic</div><div class="hud-guide" id="hudGuide"></div></div>
+      <div class="hud-fb"><div id="feedback" class="feedback-box"><div class="feedback Perfect">Perfect!</div><div class="feedback Great">Great!</div><div class="feedback Good">Good!</div><div class="feedback Miss">Miss</div></div><div id="combo" class="combo"></div></div>
+      <div class="hud-score"><div class="score-label">SCORE</div><div id="score" class="score">0</div></div>
+      <div id="scoreboard" class="scoreboard"></div>
+    </div>
+    <div class="lane-wrap">
+      <div id="laneWrap" class="lane-inner"></div>
+      <div id="noteName" class="note-name"></div>
+    </div>
+    <div class="lyrics" id="lyrics">
+      <div id="lyricPrev" class="lyric prev"></div>
+      <div id="lyricOwner" class="lyric-owner"></div>
+      <div id="lyricCur" class="lyric cur"></div>
+      <div id="lyricNext" class="lyric next"></div>
+      <div id="lyricNext2" class="lyric next n2"></div>
+      <div id="lyricNext3" class="lyric next n3"></div>
+    </div>
+    <div class="progress"><div id="progressBar" class="bar"></div><div class="time"><span id="tNow">0:00</span><span id="tEnd">0:33</span></div></div>
+    <div id="beatTrack" class="beat-track"></div>
+    <div id="soloTag" class="solo-tag"></div>
+    <div id="jamHelp" class="jam-help"></div>
+    <div id="countdown" class="countdown"></div>
+    <div id="pauseMenu" class="pause-menu">
+      <div class="pm-box">
+        <div class="pm-title">Paused</div>
+        <div class="pm-item" data-act="resume">▶ Resume</div>
+        <div class="pm-item" data-act="guide">♫ Guide vocals: <span id="pmGuide">Low</span></div>
+        <div class="pm-item" data-act="joinqr">▦ Join QR on screen: <span id="pmJoinQr">On</span></div>
+        <div class="pm-item" data-act="hit">📳 Rumble: <span id="pmHit">Normal</span></div>
+        <div class="pm-item" data-act="sync">⏱ Beat sync: <span id="pmSync">0 ms</span> <small class="pm-lr">◀ earlier · later ▶</small></div>
+        <div class="pm-item" data-act="restart">↺ Restart song</div>
+        <div class="pm-item" data-act="quit">⏏ Quit to songs</div>
+        <div class="pm-item small" data-act="fps">FPS meter</div>
+        <div class="pm-hint"><b>▲▼</b> choose · <b>OK</b> select · <b>BACK</b> resume</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CALIBRATION -->
+  <section id="calib" class="screen">
+    <img class="wordmark" src="img/logo.webp" alt="NOW! Karaoke Beat Arcade">
+    <div class="cal-box">
+      <div class="label">MIC SYNC</div>
+      <div id="calTitle" class="cal-title">Hold your iPhone where you'll sing — stay quiet</div>
+      <div class="cal-beeps" id="calBeeps"></div>
+      <div id="calMsg" class="cal-msg">Listening for the beeps from your TV…</div>
+      <div class="press" id="calPress"></div>
+    </div>
+  </section>
+
+  <!-- BEAT SYNC: tap test (audio clicks, then picture flashes) -->
+  <section id="sync" class="screen">
+    <img class="wordmark" src="img/logo.webp" alt="NOW! Karaoke Beat Arcade">
+    <div class="sync-box">
+      <div class="label">BEAT SYNC</div>
+      <div id="syncTitle" class="cal-title">Press ✕ on every click you hear</div>
+      <div id="syncFlash" class="sync-flash"></div>
+      <div id="syncDots" class="sync-dots"></div>
+      <div id="syncMsg" class="cal-msg"></div>
+      <div class="press" id="syncPress">Any face button or OK · BACK to cancel</div>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="results" class="screen">
+    <div class="rs-fx" id="rsFx"><div class="rs-beam b1"></div><div class="rs-beam b2"></div><div class="rs-beam b3"></div><div class="rs-beam b4"></div><div id="rsConfetti" class="rs-confetti"></div><svg class="rs-crowd" viewBox="0 0 1920 260" preserveAspectRatio="none"><path id="rsCrowdPath" d=""/></svg></div>
+    <div class="rs-head">
+      <div class="brand"><img class="wordmark" src="img/logo.webp" alt="NOW! Karaoke Beat Arcade"></div>
+      <div class="rs-title"><div id="rsTitle" class="rs-big">RESULTS</div><div id="mrSub" class="rs-sub"></div></div>
+      <div class="eq rs-eq"><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div id="rsWin" class="rs-win">
+      <div class="win-title">WINNER!</div>
+      <div class="win-hero">
+        <div class="win-av"><div class="win-laurel" id="winLaurel"></div><div class="win-ring"><img id="winAv" src="img/av0.webp" alt=""></div><div class="win-crown" id="winCrown"></div><div id="winTag" class="win-tag">P1</div><div class="win-ribbon">1st PLACE</div></div>
+        <div id="winName" class="win-name"></div>
+      </div>
+      <div class="win-card glass-card">
+        <div class="wc-l">FINAL SCORE</div><div id="winScore" class="wc-score">0</div>
+        <div class="wc-row"><span class="wc-ic pitch">&#9835;</span><span>Pitch Accuracy</span><b id="winPitch">–</b></div>
+        <div class="wc-row"><span class="wc-ic rhythm">&#9673;</span><span>Rhythm Accuracy</span><b id="winRhythm">–</b></div>
+        <div class="wc-row"><span class="wc-ic combo">&#9889;</span><span>Max Combo</span><b id="winCombo">–</b></div>
+      </div>
+      <div class="win-skip">Press <b>&#10005;</b> / <b>OK</b> for the full table</div>
+    </div>
+    <div class="mres">
+      <div id="mrTitle" class="mr-title"></div>
+      <div class="mr-table glass-card">
+        <div class="mr-head"><span>#</span><span>PLAYER</span><span>SCORE</span><span>PITCH</span><span>RHYTHM</span><span>COMBO</span></div>
+        <div id="mrRows" class="mr-rows"></div>
+      </div>
+    </div>
+    <div class="res">
+      <div class="res-left">
+        <div id="resStars" class="res-stars"><i>&#9733;</i><i>&#9733;</i><i>&#9733;</i><i>&#9733;</i><i>&#9733;</i></div>
+        <div class="grade-wrap"><div class="grade-laurel" id="gradeLaurel"></div><div id="grade" class="grade">S</div></div>
+        <div id="gradeMsg" class="grade-msg"></div>
+      </div>
+      <div class="res-right">
+        <div class="glass-card score-card"><div class="label">SCORE</div><div id="finalScore" class="final">0</div></div>
+        <div class="glass-card stat-card">
+          <div class="wc-row"><span class="wc-ic pitch">&#9835;</span><span>Pitch</span><i class="st-bar"><u id="sPitchBar"></u></i><b id="sPitch">–</b></div>
+          <div class="wc-row"><span class="wc-ic rhythm">&#9673;</span><span>Rhythm</span><i class="st-bar"><u id="sRhythmBar"></u></i><b id="sRhythm">–</b></div>
+          <div class="wc-row"><span class="wc-ic combo">&#9889;</span><span>Max Combo</span><i class="st-bar none"></i><b id="sCombo">–</b></div>
+        </div>
+        <div class="counts">
+          <div class="cnt perfect"><b id="cPerfect">0</b><span>Perfect</span></div>
+          <div class="cnt great"><b id="cGreat">0</b><span>Great</span></div>
+          <div class="cnt good"><b id="cGood">0</b><span>Good</span></div>
+          <div class="cnt miss"><b id="cMiss">0</b><span>Miss</span></div>
+        </div>
+        <div id="noteBars" class="note-bars"></div>
+        <div class="res-meta" id="resMeta"></div>
+      </div>
+    </div>
+    <div id="rsBtns" class="rs-btns"></div>
+  </section>
+</div>
+<audio id="audio" preload="auto"></audio>
+<audio id="guide" preload="auto"></audio>
+<script src="$WEBAPIS/webapis/webapis.js"></script>
+<script src="config.js"></script>
+<script src="shared/scoring.js"></script>
+<script src="shared/song-source.js"></script>
+<script src="shared/search.js"></script>
+<script src="engine.js"></script>
+<script src="lane.js"></script>
+<script src="beat.js"></script>
+<script src="app.js"></script>
+<script src="queue.js"></script>
+</body>
+</html>

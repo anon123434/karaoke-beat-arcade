@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>NOW! Karaoke Beat Arcade</title>
+<style>
+  :root { --pink:#ff3fa4; --cyan:#3ff2ff; --bg:#0b0420; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; height:100%; background: radial-gradient(120% 80% at 50% 0%, #2a0d5c 0%, var(--bg) 60%); color:#fff;
+    font-family: -apple-system, system-ui, sans-serif; }
+  main { min-height:100%; display:flex; flex-direction:column; align-items:center; padding: max(24px, env(safe-area-inset-top)) 22px 28px; gap:18px; }
+  .wordmark { height: 72px; width: auto; display:block; margin: 0 auto; filter: drop-shadow(0 4px 12px rgba(0,0,0,.55)); }
+  .pills { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+  .pill { padding:6px 12px; border-radius:999px; font-size:13px; background:#ffffff14; border:1px solid #ffffff22; }
+  .pill.ok { background:#1fd17a22; border-color:#1fd17a; color:#7dffb8; }
+  .pill.bad { background:#ff3b5c22; border-color:#ff3b5c; color:#ff9bab; }
+  #mic { width: 210px; height: 210px; border-radius:50%; border:0; color:#fff; font-size:20px; font-weight:700;
+    background: radial-gradient(circle at 50% 35%, #ff6cc0, #b4127a); box-shadow: 0 0 0 0 #ff3fa466, 0 18px 50px #ff3fa455; }
+  #mic.live { background: radial-gradient(circle at 50% 35%, #46f7ff, #0f7fa6); box-shadow: 0 0 0 var(--ring, 0px) #3ff2ff44, 0 18px 50px #3ff2ff44; }
+  #note { font-size:64px; font-weight:800; height:76px; font-variant-numeric: tabular-nums; }
+  #hz { opacity:.6; font-size:14px; height:18px; }
+  #meter { width:100%; max-width:340px; height:10px; border-radius:6px; background:#ffffff14; overflow:hidden; }
+  #meter i { display:block; height:100%; width:0%; background: linear-gradient(90deg, var(--cyan), var(--pink)); }
+  #lyric { min-height:52px; font-size:20px; text-align:center; opacity:.9; }
+  #fb { font-size:28px; font-weight:800; height:34px; }
+  #score { font-size:15px; opacity:.75; }
+  .hint { font-size:13px; opacity:.6; text-align:center; max-width:340px; line-height:1.4; }
+  #err { color:#ff9bab; font-size:14px; text-align:center; max-width:340px; }
+.guide { margin: 18px auto 0; max-width: 420px; text-align: center; }
+.guide-h { font-size: 15px; color: #ffffffa0; margin-bottom: 8px; letter-spacing: 1px; }
+.seg { display: flex; gap: 6px; justify-content: center; }
+.seg button { flex: 1; font-size: 16px; padding: 10px 0; border-radius: 12px; border: 2px solid #ffffff30; background: #ffffff10; color: #fff; }
+.seg button.on { background: #ffd75e; color: #111; border-color: #ffd75e; font-weight: 700; }
+.seg.na { opacity: .4; }
+.guide-note { font-size: 12px; color: #ffffff80; margin-top: 8px; line-height: 1.35; }
+.player { display: flex; gap: 10px; align-items: center; justify-content: center; margin-bottom: 10px; }
+.badge { padding: 6px 12px; border-radius: 999px; font-weight: 800; font-size: 15px; background: #ffffff20; color: #111; }
+#pName { width: 150px; font-size: 16px; padding: 8px 10px; border-radius: 10px; border: 2px solid #ffffff30; background: #ffffff10; color: #fff; text-align: center; }
+.vbox { margin: 14px auto 0; max-width: 420px; width: 100%; text-align: center; border-top: 1px solid #ffffff18; padding-top: 14px; }
+.vrow { display: flex; align-items: center; gap: 10px; justify-content: space-between; margin: 8px 0; font-size: 16px; }
+.vrow input[type=range] { flex: 1; accent-color: var(--cyan); }
+.tog { min-width: 74px; font-size: 15px; padding: 8px 12px; border-radius: 12px; border: 2px solid #ffffff30; background: #ffffff10; color: #fff; }
+.tog.on { background: var(--cyan); color: #111; border-color: var(--cyan); font-weight: 700; }
+#vStatus, #vDelay { font-size: 12px; color: #ffffff90; line-height: 1.35; min-height: 16px; }
+#vMeasure { margin-top: 6px; font-size: 15px; padding: 9px 14px; border-radius: 12px; border: 2px solid #ffffff30; background: #ffffff10; color: #fff; }
+#findBox { margin: 14px auto 0; max-width: 420px; width: 100%; text-align: center; border-top: 1px solid #ffffff18; padding-top: 14px; }
+.frow { display: flex; gap: 10px; }
+#qIn { flex: 1; min-width: 0; font-size: 18px; padding: 12px 14px; border-radius: 14px; border: 2px solid #ffffff30; background: #ffffff10; color: #fff; }
+#qMic { width: 58px; font-size: 26px; border-radius: 14px; border: 2px solid var(--cyan); background: #3ff2ff22; color: #fff; }
+#qMic.on { background: var(--pink); border-color: var(--pink); animation: qpulse 1s infinite; }
+@keyframes qpulse { 50% { opacity: .65; } }
+#qStatus { font-size: 14px; color: #ffffffb0; min-height: 18px; margin-top: 8px; line-height: 1.35; }
+#qList { font-size: 14px; color: #ffffff90; text-align: left; margin-top: 4px; line-height: 1.5; }
+#turn { font-size: 18px; font-weight: 800; text-align: center; min-height: 24px; }
+/* v13.8 premium neon theme (matches the TV): stage photo, glass cards, neon accents, gold highlights */
+html, body { background: #0a0320; }
+body::before { content: ''; position: fixed; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(8,2,26,.35), rgba(8,2,26,.82) 55%), url(/tv/img/stage.jpg) 70% 0 / cover no-repeat; }
+.pill { background: rgba(18,7,44,.6); border-color: rgba(255,255,255,.18); }
+#mic { background: radial-gradient(circle at 50% 30%, #ff8fd0, #b4127a 70%); box-shadow: 0 0 0 3px rgba(255,255,255,.25), 0 0 40px #ff3fa4aa, 0 18px 50px #ff3fa455; }
+#mic.live { box-shadow: 0 0 0 var(--ring, 0px) #3ff2ff44, 0 0 0 3px rgba(255,255,255,.25), 0 0 40px #3ff2ffaa; }
+#note { background: linear-gradient(180deg, #fffbe6, #ffe27a 40%, #ff9f1c); -webkit-background-clip: text; background-clip: text; color: transparent; }
+#meter { background: rgba(255,255,255,.1); }
+#meter i { background: linear-gradient(90deg, #3ff2ff, #8b5cff 55%, #ff3fa4); box-shadow: 0 0 10px #3ff2ff; }
+#findBox, .guide, .vbox { background: linear-gradient(160deg, rgba(255,255,255,.1), rgba(255,255,255,.03)), rgba(18,7,44,.62); border: 1.5px solid rgba(255,255,255,.16); border-radius: 20px; padding: 14px 16px; box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 12px 30px rgba(0,0,0,.35); }
+.guide-h { color: #c9b8ff; font-weight: 700; }
+.seg button.on { background: linear-gradient(180deg, #ffe27a, #ffb52e); border-color: #ffd75e; box-shadow: 0 0 14px rgba(255,180,46,.5); }
+.tog.on { background: #3ff2ff; box-shadow: 0 0 14px rgba(63,242,255,.55); }
+#qIn:focus { outline: 0; border-color: #3ff2ff; box-shadow: 0 0 16px rgba(63,242,255,.4); }
+</style>
+</head>
+<body>
+<main>
+  <img class="wordmark" src="/tv/img/logo.webp" alt="NOW! Karaoke Beat Arcade">
+  <div class="player" id="player"><span id="pBadge" class="badge">Player</span><input id="pName" maxlength="14" placeholder="Your name" autocomplete="off"></div>
+  <div class="pills">
+    <div id="pConn" class="pill">Connecting…</div>
+    <div id="pTv" class="pill">TV: ?</div>
+    <div id="pMic" class="pill">Mic off</div>
+  </div>
+  <button id="mic">Tap to start mic</button>
+  <div id="note">–</div>
+  <div id="hz"></div>
+  <div id="meter"><i></i></div>
+  <div id="fb"></div>
+  <div id="turn"></div>
+  <div id="lyric"></div>
+  <div id="score"></div>
+  <div id="findBox">
+    <div class="guide-h">Find a song on the TV</div>
+    <div class="frow"><input id="qIn" placeholder="Type or tap the mic and say it" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button id="qMic" aria-label="Search by voice">&#127908;</button></div>
+    <div id="qStatus">The TV song list filters as you type or speak.</div>
+    <div id="qList"></div>
+  </div>
+  <div id="guideBox" class="guide">
+    <div class="guide-h">Guide vocals on the TV</div>
+    <div class="seg" id="guideSeg"><button data-l="off">Off</button><button data-l="low">Low</button><button data-l="medium">Med</button><button data-l="full">Full</button></div>
+    <div class="guide-note">The original singer plays quietly under the music. If your phone mic picks it up, it can nudge your score — keep it Low (or Off) for an honest score.</div>
+  </div>
+  <div class="vbox" id="voiceBox" hidden style="display:none"><!-- v13.8.1: voice through the TV removed (always off) -->
+    <div class="guide-h">My voice on the TV speakers</div>
+    <div class="vrow"><span>Hear my voice</span><button class="tog" id="vOn">On</button></div>
+    <div class="vrow"><span>Volume</span><input type="range" id="vVol" min="0" max="150" value="80"></div>
+    <div class="vrow"><span>Auto-tune</span><button class="tog" id="atOn">Off</button></div>
+    <div class="vrow"><span>Strength</span><input type="range" id="atStr" min="10" max="100" value="60"></div>
+    <div id="vStatus">Turn on “Voice on TV” on the TV (home screen or pause menu).</div>
+    <button id="vMeasure">Measure delay</button>
+    <div id="vDelay"></div>
+  </div>
+  <div id="err"></div>
+  <p class="hint">Hold the phone near your mouth, about a hand's width away. Keep this screen open while you sing. Scoring uses only pitch numbers from your raw voice (never the auto-tuned sound). With “Hear my voice” on, your mic audio is streamed live over your Wi-Fi to the TV speakers — never recorded or sent anywhere else.</p>
+</main>
+<script src="/shared/yin.js"></script>
+<script src="/shared/autotune.js"></script>
+<script src="/shared/search.js"></script>
+<script src="songs-tab.js"></script>
+<script src="phone.js"></script>
+</body>
+</html>
