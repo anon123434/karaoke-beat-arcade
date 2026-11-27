@@ -56,7 +56,7 @@
   function ensureIndex() {
     if (IDX || loading) return; loading = true;
     fetch('songs-index.json', { cache: 'no-cache' }).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (j) {
-      IDX = j; S = j.songs.map(function (a) { return { id: a[0], t: a[1], a: a[2], c: a[3] }; }); CATS = j.cats;
+      IDX = j; S = j.songs.map(function (a) { return { id: a[0], t: a[1], a: a[2], c: a[3], added: a[4] || '' }; }); CATS = j.cats;
       if (window.KaraokeSearch) FUZ = KaraokeSearch.index(S.map(function (s) { return { title: s.t, artist: s.a }; }));
       renderCats(); render();
     }).catch(function () { $('sEmpty').style.display = ''; $('sEmpty').innerHTML = 'Couldn\u2019t load the song list. <button id="sRetry" style="margin-top:8px;padding:8px 16px;border-radius:10px;border:2px solid #fff3;background:#fff1;color:#fff;font-size:15px">Try again</button>'; $('sRetry').onclick = function () { ensureIndex(); }; }).then(function () { loading = false; });
@@ -83,6 +83,7 @@
       if (!FUZ) { var qq = q.trim().toLowerCase(); S.forEach(function (s, k) { if ((s.t + ' ' + s.a).toLowerCase().indexOf(qq) >= 0) r.push({ i: k }); }); }
       for (i = 0; i < r.length; i++) if (cat < 0 || S[r[i].i].c.indexOf(cat) >= 0) list.push(r[i].i);
     } else for (i = 0; i < S.length; i++) if (cat < 0 || S[i].c.indexOf(cat) >= 0) list.push(i);
+    if (!q.trim() && cat >= 0 && CATS[cat] && CATS[cat][0] === 'new') list.sort(function (a, b) { var da = S[a].added || '', db = S[b].added || ''; return da < db ? 1 : da > db ? -1 : 0; });   // v13.14 Newly Added, newest first
     shown = list.slice(0, 80);
     var h = '';
     for (i = 0; i < shown.length; i++) { var s = S[shown[i]]; h += '<button class="srow" data-i="' + shown[i] + '"><b>' + esc(s.t) + '</b><span>' + esc(s.a) + '</span>' + (inQueue(s.id) ? '<em>\u2713 queued</em>' : '') + '</button>'; }

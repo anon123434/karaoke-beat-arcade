@@ -29,3 +29,4 @@ songs/*
 songs/library.json
 data/*
 !data/library-meta.txt
+!data/song-added.json

@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var CFG = window.KARAOKE_CONFIG;
-  var BUILD = 'v13.13.1';
+  var BUILD = 'v13.14';
   var DEV = window.KaraokeDev = { overlay: true, tiles: true, feedback: true, lyrics: true, hud: true, bg: true };
   var S = window.KaraokeScoring;
   var $ = function (id) { return document.getElementById(id); };
@@ -471,6 +471,7 @@
     searchQ = q.replace(/\s+$/, '');
     var cards = $('songList').children, r = searchQ ? KaraokeSearch.rank(searchIndex(), searchQ) : null, i, set = {};
     if (catId() !== 'all') { if (!r) { r = []; for (i = 0; i < songs.length; i++) r.push({ i: i }); } r = r.filter(function (x) { return inCat(x.i); }); }   // v13.9 category rail
+    if (catId() === 'new' && r) r = r.slice().sort(function (a, b) { var da = (libOf(songs[a.i]) || {}).added || '', db = (libOf(songs[b.i]) || {}).added || ''; return da < db ? 1 : da > db ? -1 : 0; });   // v13.14: Newly Added, newest first
     $('songList').classList.toggle('searching', !!r);
     if (r) r.forEach(function (x, n) { set[x.i] = n; });
     for (i = 0; i < cards.length; i++) {

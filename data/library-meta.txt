@@ -1,4 +1,5 @@
-# id | genre | year | ballad(1/0) | optional extra category ids, comma separated — your own library metadata (MP3s carry no tags/art); categories are derived from this
+# id | genre | year | ballad(1/0) | optional extra category ids, comma separated | optional added date (YYYY-MM-DD)
+# Your own library metadata (MP3s carry no tags/art); categories are derived from this. Dates also live in data/song-added.json.
 # genres: rnb hiphop rock pop soul country reggae latin dance xmas kids gospel (see tools/build-library.py)
 # Add one line per song id in songs/. Songs without a line are treated as Pop (2000, not a ballad).
 twinkle | kids | 1806 | 0

@@ -29,7 +29,8 @@ melody, as in `melody.json`), `lines` (`[{t, end, words:[{t, d, text}]}]` for th
   `python3 -m venv .venv-ingest && .venv-ingest/bin/pip install demucs faster-whisper librosa numpy soundfile`, then
   `npm run ingest -- path/to/song.mp3 'Artist - Title' --no-install`. This separates vocals, fetches synced lyrics from
   LRCLIB, times the words, extracts a reference melody and writes `songs/user-<slug>/`.
-* **By hand:** create the folder with the files above, add a line to `data/library-meta.txt` (genre/year/ballad) and run
-  `npm run index` (rebuilds `songs/index.json`) and, optionally, `python3 tools/build-library.py` (categories, previews, `library.json`).
+* **By hand:** create the folder with the files above, add a line to `data/library-meta.txt` (genre/year/ballad, and optionally extra categories and an added date) and run
+  `npm run index` (rebuilds `songs/index.json`) and, optionally, `python3 tools/build-library.py` (categories, previews, `library.json`, and `data/song-added.json`).
+  Songs added in the last 14 days appear in the Newly Added category, newest first. `data/song-added.json` is a date registry of song ids already in this repo (the two demos). Do not commit ids for a private library.
 
 Do not commit your changes to `songs/index.json` (it lists your private library); it is regenerated locally.

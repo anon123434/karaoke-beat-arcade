@@ -15,9 +15,9 @@ const quiet = (w, ms = 250) => new Promise(r => setTimeout(r, ms));
 
 test('PhoneIndex.build: ids, titles, artists, categories, small', () => {
   const j = PhoneIndex.build([{ id: 'a-1', title: 'Song One', artist: 'Artist One' }, { id: '../bad', title: 'x', artist: 'y' }, { id: 'b', title: 'B', artist: 'C' }],
-    { cats: [{ id: 'all' }, { id: 'fav' }, { id: 'rock', name: 'Rock' }], songs: { 'a-1': { cats: ['rock', 'nope'] } } });
+    { cats: [{ id: 'all' }, { id: 'fav' }, { id: 'rock', name: 'Rock' }], songs: { 'a-1': { cats: ['rock', 'nope'], added: '2026-11-20' } } });
   assert.deepStrictEqual(j.cats, [['rock', 'Rock']]); assert.strictEqual(j.songs.length, 2);
-  assert.deepStrictEqual(j.songs[0], ['a-1', 'Song One', 'Artist One', [0]]); assert.deepStrictEqual(j.songs[1][3], []);
+  assert.deepStrictEqual(j.songs[0], ['a-1', 'Song One', 'Artist One', [0], '2026-11-20']); assert.deepStrictEqual(j.songs[1][3], []); assert.strictEqual(j.songs[1][4], '');
 });
 
 test('queue relay: q-add/q-del/q-get validated + rate-limited per phone; queue/qres routed back', async () => {

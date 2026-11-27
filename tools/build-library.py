@@ -1,17 +1,42 @@
 """v13.9 song-select library: categories (data/library-meta.txt), Beat difficulty bars + vocal stars, and a 18 s hook PREVIEW per song.
 Hook = the 18 s window (20-80% of the song) with the most vocal + mix energy, nudged to start on a lyric line; fallback 35% in.
 Writes songs/<id>/preview.mp3 (96 kb/s, 0.8 s fade in, 1.5 s fade out) and songs/library.json. Re-run any time (skips existing previews unless --force)."""
-import json, subprocess, sys, math
+import json, subprocess, sys, math, re
 from pathlib import Path
+from datetime import date, timedelta, datetime
 import numpy as np
 ROOT = Path(__file__).resolve().parents[1]; SONGS = ROOT / 'songs'; FORCE = '--force' in sys.argv
 PLEN = 18.0
-CAT_NAMES = [('all', 'All Songs'), ('fav', 'Favorites'), ('90s-rnb', "90s R&B"), ('rnb', 'R&B'), ('hiphop', 'Hip-Hop'), ('throwbacks', 'Throwbacks'), ('rock', 'Rock'),
+CAT_NAMES = [('all', 'All Songs'), ('new', 'Newly Added'), ('fav', 'Favorites'), ('90s-rnb', "90s R&B"), ('rnb', 'R&B'), ('hiphop', 'Hip-Hop'), ('throwbacks', 'Throwbacks'), ('rock', 'Rock'),
              ('pop', 'Pop'), ('soul', 'Soul'), ('country', 'Country'), ('ballads', 'Ballads'), ('reggae-latin', 'Reggae & Latin'), ('dance', 'Dance'), ('christmas', 'Christmas'), ('classics', 'Sing-Along')]
-meta = {}; extra = {}
+NEW_DAYS = 14
+ADDED_FILE = ROOT / 'data' / 'song-added.json'   # id -> YYYY-MM-DD; first-seen registry so later imports land in Newly Added automatically
+meta = {}; extra = {}; explicit_added = {}
 for l in (ROOT / 'data/library-meta.txt').read_text().splitlines():
     if not l.strip() or l.startswith('#'): continue
     f = [x.strip() for x in l.split('|')]; i, g, y, b = f[:4]; meta[i] = (g, int(y), b == '1'); extra[i] = [x for x in (f[4].split(',') if len(f) > 4 else []) if x]   # optional 5th column: extra category ids (e.g. pop)
+    if len(f) > 5 and re.match(r'^\d{4}-\d{2}-\d{2}$', f[5]): explicit_added[i] = f[5]   # optional 6th column: added date
+def load_added():
+    try: return json.loads(ADDED_FILE.read_text())
+    except Exception: return {}
+def committed_meta_keys():
+    """IDs already in the last committed library-meta. File mtimes are useless here (the tree is often recopied in one day)."""
+    r = subprocess.run(['git', 'show', 'HEAD:data/library-meta.txt'], cwd=ROOT, capture_output=True, text=True)
+    if r.returncode != 0: return set()
+    keys = set()
+    for line in r.stdout.splitlines():
+        if not line.strip() or line.startswith('#'): continue
+        keys.add(line.split('|')[0].strip())
+    return keys
+def assign_added(sid, key, registry, known):
+    if key in explicit_added: return explicit_added[key]
+    if sid in registry: return registry[sid]
+    # First time we see this id: brand-new catalog rows get today; songs already in the committed library stay outside the 14-day window.
+    return date.today().isoformat() if key not in known else (date.today() - timedelta(days=NEW_DAYS + 1)).isoformat()
+def is_recent(iso):
+    try: d = datetime.strptime(iso, '%Y-%m-%d').date()
+    except Exception: return False
+    return (date.today() - d).days <= NEW_DAYS
 def cats(g, y, ballad):
     c = []
     if g == 'rnb': c.append('90s-rnb' if 1990 <= y < 2000 else 'rnb')
@@ -61,9 +86,12 @@ def cut(d, s, t0, out):
     tmp = out.with_suffix('.tmp.mp3')
     subprocess.run(['ffmpeg', '-v', 'error', '-y'] + args + ['-ac', '2', '-ar', '44100', '-b:a', '96k', str(tmp)], check=True); tmp.replace(out)
 lib = {'version': 1, 'cats': [], 'songs': {}}; counts = {}
+added_reg = load_added(); known_keys = committed_meta_keys()
 for e in json.loads((SONGS / 'index.json').read_text()):
     sid = e['id']; key = sid.replace('user-', ''); d = SONGS / sid; s = json.loads((d / 'song.json').read_text())
     g, y, ballad = meta.get(key, ('pop', 2000, False)); cs = cats(g, y, ballad) + [c for c in extra.get(key, []) if c not in cats(g, y, ballad)]
+    added = assign_added(sid, key, added_reg, known_keys); added_reg[sid] = added
+    if is_recent(added) and 'new' not in cs: cs.append('new')
     for c in cs + ['all']: counts[c] = counts.get(c, 0) + 1
     ev = (s.get('chart') or {}).get('ev') or []; dur = float(s.get('duration') or 1)
     npm = len([x for x in ev if x[4] <= 2]) / dur * 60 if ev else 0
@@ -75,7 +103,7 @@ for e in json.loads((SONGS / 'index.json').read_text()):
     if pv.exists() and not FORCE and (d / 'preview.json').exists(): info = json.loads((d / 'preview.json').read_text())
     else:
         t0, how = hook(d, s, sid); cut(d, s, t0, pv); info = {'t0': round(t0, 2), 'len': PLEN, 'how': how}; (d / 'preview.json').write_text(json.dumps(info))
-    lib['songs'][sid] = {'genre': g, 'year': y, 'cats': cs, 'npm': round(npm), 'vocal': round(vocal, 3), 'preview': info}
+    lib['songs'][sid] = {'genre': g, 'year': y, 'cats': cs, 'npm': round(npm), 'vocal': round(vocal, 3), 'preview': info, 'added': added}
     print('%-45s %-7s %4d npm %4d vocal %.2f  hook %6.1fs / %5.0fs (%s)' % (sid, g, y, npm, vocal, info['t0'], dur, info['how']), flush=True)
 def quint(key, out):   # library-relative 1-5 (quintiles), so the meters spread across the whole library
     ids = sorted(lib['songs'], key=lambda i: lib['songs'][i][key])
@@ -83,4 +111,6 @@ def quint(key, out):   # library-relative 1-5 (quintiles), so the meters spread 
 quint('npm', 'bars'); quint('vocal', 'stars')
 lib['cats'] = [{'id': c, 'name': n, 'count': counts.get(c, 0)} for c, n in CAT_NAMES if c in ('all', 'fav') or counts.get(c)]
 tmp = SONGS / 'library.json.tmp'; tmp.write_text(json.dumps(lib, separators=(',', ':'))); tmp.replace(SONGS / 'library.json')
+ADDED_FILE.parent.mkdir(parents=True, exist_ok=True)
+ADDED_FILE.write_text(json.dumps(added_reg, indent=2, sort_keys=True) + '\n')
 print('cats:', [(c['name'], c['count']) for c in lib['cats']])
