@@ -13,7 +13,8 @@ export class Board extends DurableObject {
       CREATE TABLE IF NOT EXISTS fails (ip TEXT, at INTEGER);
       CREATE TABLE IF NOT EXISTS duels (id INTEGER PRIMARY KEY, match TEXT UNIQUE, song TEXT, a TEXT, ak TEXT, sa INTEGER, b TEXT, bk TEXT, sb INTEGER, wk TEXT, forfeit INTEGER, at INTEGER);
       CREATE INDEX IF NOT EXISTS d_a ON duels(ak); CREATE INDEX IF NOT EXISTS d_b ON duels(bk);
-      CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY, at INTEGER, reporter TEXT, target TEXT, match TEXT, reason TEXT, ip TEXT);`);
+      CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY, at INTEGER, reporter TEXT, target TEXT, match TEXT, reason TEXT, ip TEXT);
+      CREATE TABLE IF NOT EXISTS ghost_duels (id INTEGER PRIMARY KEY, match TEXT UNIQUE, song TEXT, human TEXT, hk TEXT, sh INTEGER, ghost TEXT, sg INTEGER, outcome TEXT, want TEXT, forfeit INTEGER, at INTEGER);`);
   }
   rows(q, ...a) { return this.sql.exec(q, ...a).toArray(); }
   top(song, kind, n = 10) {
@@ -70,6 +71,18 @@ export class Board extends DurableObject {
       const rank = (k, sc) => sc == null ? null : this.rows('SELECT COUNT(*) c FROM (SELECT nkey, MAX(score) s FROM scores WHERE song=? AND kind=? GROUP BY nkey) WHERE s > ?', b.song, 'sing', sc)[0].c + 1;
       return J({ h2h: { a: h.aw || 0, b: h.bw || 0, d: h.d || 0 }, a: { ...this.record(ak), rank: rank(ak, b.a.score) }, b: { ...this.record(bk), rank: rank(bk, b.b.score) } });
     }
+    // stand-in (ghost) rounds: stored apart (ghost:true) and never read by any leaderboard, World Top 5 or online record query
+    if (p === '/online/ghost' && req.method === 'POST') {
+      const b = await req.json(), hk = nkey(b.human.name);
+      try { this.sql.exec('INSERT INTO ghost_duels (match, song, human, hk, sh, ghost, sg, outcome, want, forfeit, at) VALUES (?,?,?,?,?,?,?,?,?,?,?)', b.match, b.song, b.human.name, hk, b.human.score, b.ghost.name, b.ghost.score, b.outcome, b.want, b.forfeit ? 1 : 0, Date.now()); } catch (e) {}
+      const rank = b.human.score == null ? null : this.rows('SELECT COUNT(*) c FROM (SELECT nkey, MAX(score) s FROM scores WHERE song=? AND kind=? GROUP BY nkey) WHERE s > ?', b.song, 'sing', b.human.score)[0].c + 1;
+      return J({ ghost: true, record: this.record(hk), rank });
+    }
+    if (p === '/online/ghost-stats') {
+      const r = this.rows("SELECT COUNT(*) n, SUM(outcome='human') hw, SUM(outcome='ghost') gw, SUM(outcome='draw') d, SUM(forfeit) ff, SUM(at > ?) today FROM (SELECT * FROM ghost_duels ORDER BY at DESC LIMIT 500)", Date.now() - 86400e3)[0];
+      const decided = (r.hw || 0) + (r.gw || 0);
+      return J({ rounds: r.n || 0, last24h: r.today || 0, humanWins: r.hw || 0, ghostWins: r.gw || 0, draws: r.d || 0, forfeits: r.ff || 0, humanWinRate: decided ? +((r.hw || 0) / decided).toFixed(3) : null, recent: this.rows('SELECT human, sh, ghost, sg, outcome, want, forfeit, song, at FROM ghost_duels ORDER BY at DESC LIMIT 15') });
+    }
     if (p === '/api/online/record') return J(this.record(nkey(u.searchParams.get('name') || '')));
     if (p === '/api/lb/online') {
       const top = this.rows(`SELECT name, k, SUM(w) w, SUM(l) l, SUM(d) d FROM (SELECT a name, ak k, CASE WHEN wk=ak THEN 1 ELSE 0 END w, CASE WHEN wk IS NOT NULL AND wk!=ak THEN 1 ELSE 0 END l, CASE WHEN wk IS NULL THEN 1 ELSE 0 END d FROM duels UNION ALL SELECT b, bk, CASE WHEN wk=bk THEN 1 ELSE 0 END, CASE WHEN wk IS NOT NULL AND wk!=bk THEN 1 ELSE 0 END, CASE WHEN wk IS NULL THEN 1 ELSE 0 END FROM duels) GROUP BY k ORDER BY w DESC, l ASC LIMIT 20`).map(r => ({ name: r.name, w: r.w, l: r.l, d: r.d }));
@@ -86,7 +99,8 @@ export class Board extends DurableObject {
     if (p === '/admin/purge-test' && req.method === 'POST') {   // removes release-test rows (names starting "QA ") from scores and duels
       const a = this.rows("SELECT COUNT(*) c FROM scores WHERE nkey LIKE 'qa %'")[0].c, b = this.rows("SELECT COUNT(*) c FROM duels WHERE ak LIKE 'qa %' OR bk LIKE 'qa %'")[0].c;
       this.sql.exec("DELETE FROM scores WHERE nkey LIKE 'qa %'"); this.sql.exec("DELETE FROM duels WHERE ak LIKE 'qa %' OR bk LIKE 'qa %'"); this.sql.exec("DELETE FROM reports WHERE reporter LIKE 'QA %'");
-      return J({ ok: true, scores: a, duels: b });
+      const gd = this.rows("SELECT COUNT(*) c FROM ghost_duels WHERE hk LIKE 'qa %'")[0].c; this.sql.exec("DELETE FROM ghost_duels WHERE hk LIKE 'qa %'");
+      return J({ ok: true, scores: a, duels: b, ghostRounds: gd });
     }
     if (p === '/online/reports') return J({ reports: this.rows('SELECT at, reporter, target, match, reason FROM reports ORDER BY at DESC LIMIT 100') });
     if (p === '/fails') { const n = this.rows('SELECT COUNT(*) AS c FROM fails WHERE ip=? AND at>?', u.searchParams.get('ip'), Date.now() - 3600e3)[0].c; return J({ n }); }

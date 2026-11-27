@@ -102,6 +102,8 @@ The Worker serves the same app under `/kba` on your own domain or `workers.dev`,
 over real HTTPS (no certificates), and adds the global leaderboard and online 1v1. It is protected by a numeric invite
 code. Songs are uploaded as static assets, **so only deploy music you have the rights to host**.
 
+Note: when nobody else is online, Quick Match (and an open challenge) may fall back to a simulated AI opponent after 8–15 seconds; those rounds never count on the leaderboards or online records (`GHOSTS_ENABLED`, see `worker/src/ghost.js`).
+
 ```sh
 cd worker
 npm install

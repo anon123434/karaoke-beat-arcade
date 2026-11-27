@@ -52,6 +52,7 @@ ONLINE_ENABLED = "0"          # online 1v1 matches
 LB_PANEL_ENABLED = "1"        # World Top 5 panel on song select
 ONLINE_DAILY_CAP = "300"      # max online matches per UTC day
 ONLINE_BANS = ""              # comma-separated names to refuse in the online lobby
+GHOSTS_ENABLED = "1"          # nobody online after 8-15 s: Quick Match / a challenge plays a simulated AI opponent (never on leaderboards)
 
 # Secrets are NOT set here. Use:  npx wrangler secret put INVITE_CODE | SECRET | RELAY_TOKEN
 # (or a local, git-ignored worker/.dev.vars file for `wrangler dev`)

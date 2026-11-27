@@ -73,3 +73,17 @@
 .kon-busy { position: absolute; left: 610px; top: 440px; width: 700px; padding: 34px 40px; border-radius: 28px; background: rgba(18,7,44,.96); border: 3px solid #3ff2ff; display: flex; align-items: center; gap: 28px; z-index: 50; font-size: 40px; font-weight: 800; }
 .kon-spin { width: 56px; height: 56px; border-radius: 50%; border: 7px solid rgba(255,255,255,.2); border-top-color: #3ff2ff; animation: konspin .8s linear infinite; will-change: transform; flex: none; }
 @keyframes konspin { to { transform: rotate(360deg); } }
+
+/* Spin random: slot reel (transform only) */
+.kon-reelwrap { position: absolute; left: 400px; width: 1120px; top: 250px; height: 450px; overflow: hidden; border-radius: 30px; cursor: pointer; border: 3px solid #ffd75e88; }
+.kon-reelwrap.foc { box-shadow: 0 0 0 5px #ffd75e, 0 0 60px #ffd75e66; }
+.kon-reel { position: absolute; left: 0; right: 0; top: 0; will-change: transform; }
+.kon-tile { height: 150px; box-sizing: border-box; display: flex; align-items: center; gap: 30px; padding: 0 44px; border-bottom: 1px solid #ffffff14; }
+.kon-tile .art { border-radius: 16px; flex: none; }
+.kon-tile .t { font-size: 40px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kon-tile.lit { background: linear-gradient(90deg, #ffd75e33, #ff3fa433); }
+.kon-tile.lit .t { color: #ffd75e; }
+.kon-reelmark { position: absolute; left: 0; right: 0; top: 150px; height: 150px; border-top: 4px solid #ffd75e; border-bottom: 4px solid #ffd75e; pointer-events: none; box-shadow: inset 0 0 40px #ffd75e44; }
+.kon-reelwrap::before, .kon-reelwrap::after { content: ''; position: absolute; left: 0; right: 0; height: 150px; z-index: 1; pointer-events: none; }
+.kon-reelwrap::before { top: 0; background: linear-gradient(#12072cee, #12072c55); }
+.kon-reelwrap::after { bottom: 0; background: linear-gradient(#12072c55, #12072cee); }

@@ -73,7 +73,7 @@
     lws = new WebSocket(wsUrl('/ws/lobby?cid=' + cid + '&name=' + encodeURIComponent(me.name)));
     lws.onopen = function () { lretry = 0; clearInterval(lbeat); lbeat = setInterval(function () { lsend({ type: 'beat' }); }, 5000); if (S.v === 'waiting' && S.song) lsend({ type: S.quick ? 'quick' : 'create', song: S.song }); if (pendingSend) { var ps = pendingSend; pendingSend = null; lsend(ps); } };
     lws.onmessage = function (ev) { var m; try { m = JSON.parse(ev.data); } catch (e) { return; } onLobby(m); };
-    lws.onclose = function () { clearInterval(lbeat); lws = null; if (S.v === 'lobby' || S.v === 'waiting' || S.v === 'picking') setTimeout(connectLobby, Math.min(8000, 800 * Math.pow(2, lretry++))); };
+    lws.onclose = function () { clearInterval(lbeat); lws = null; if (S.v === 'lobby' || S.v === 'waiting' || S.v === 'picking' || S.v === 'spin') setTimeout(connectLobby, Math.min(8000, 800 * Math.pow(2, lretry++))); };
   }
   function lsend(o) { if (lws && lws.readyState === 1) { lws.send(JSON.stringify(o)); return true; } return false; }
   // v13.11.1 immediate press feedback for quick match / join: pressed state + "Connecting" spinner within one frame (transform/opacity only),
@@ -97,7 +97,7 @@
   function closeLobby() { clearInterval(lbeat); if (lws) { var w = lws; lws = null; w.onclose = null; try { w.close(); } catch (e) {} } }
   function onLobby(m) {
     if (m.type === 'created' || m.type === 'matched' || m.type === 'error' || m.type === 'taken' || m.type === 'expired') busyOff();
-    if (m.type === 'welcome') { me.name = m.you.name; me.av = m.you.av; if (m.you.banned) toast('Online play is off for this name.', 4000); loadRecord(); }
+    if (m.type === 'welcome') { if (m.spin && m.spin.length) spinList = m.spin; me.name = m.you.name; me.av = m.you.av; if (m.you.banned) toast('Online play is off for this name.', 4000); loadRecord(); }
     else if (m.type === 'list') { lobby = m; if (S.v === 'lobby') renderLobby(true); else if (S.v === 'waiting') { var e = st.querySelector('#konOnline'); if (e) e.textContent = '🌎 ' + m.online + ' online'; } }
     else if (m.type === 'created') { S = { v: 'waiting', id: m.id, song: m.song, title: m.title, artist: m.artist, d: m.d, quick: m.quick, since: Date.now() }; showWaiting(); }
     else if (m.type === 'matched') { closeLobby(); startMatch(m); }
@@ -125,7 +125,7 @@
       '<div id="konList" style="height:690px;overflow:hidden;padding:6px">' + (rows || '<div class="glass" style="padding:60px;text-align:center;font-size:34px;line-height:1.5">No open challenges yet.<br><span class="dim" style="font-size:28px">Press <b>Join any game</b> and the next person to arrive plays you,<br>or make a challenge with your favorite song.</span></div>') + '</div></div>' +
       '<div style="position:absolute;left:1430px;top:190px;width:430px;display:flex;flex-direction:column;gap:22px">' +
       '<div class="glass" style="padding:30px;border-color:#ff3fa4"><div style="font-size:30px;font-weight:800">⚡ Quick Match</div><div style="font-size:21px;color:#fffc;margin:10px 0 22px;line-height:1.35">Jump into the next game. We pick a song for you both.</div><div class="gold' + (items.length ? '' : ' auto') + '" data-f="quick" style="font-size:32px;padding:18px">JOIN ANY GAME</div></div>' +
-      '<div class="glass" style="padding:30px"><div style="font-size:30px;font-weight:800">⚔ Make a Challenge</div><div style="font-size:21px;color:#fffc;margin:10px 0 22px;line-height:1.35">Pick any song and wait for an opponent.</div><div class="cyanb" data-f="pick" style="font-size:28px;padding:16px">CHOOSE A SONG</div></div>' +
+      '<div class="glass" style="padding:30px"><div style="font-size:30px;font-weight:800">⚔ Make a Challenge</div><div style="font-size:21px;color:#fffc;margin:10px 0 22px;line-height:1.35">Pick any song and wait for an opponent.</div><div class="cyanb" data-f="pick" style="font-size:28px;padding:16px">CHOOSE A SONG</div><div class="pill kon-spinbtn" data-f="spin" style="display:block;text-align:center;margin-top:16px;font-size:26px;padding:13px;border-color:#ffd75e;color:#ffd75e">🎰 SPIN RANDOM</div></div>' +
       '<div class="glass" style="padding:24px 30px;display:flex;align-items:center;gap:18px">' + av(me.av, 70) + '<div><div style="font-size:26px;font-weight:800">' + esc(me.name) + '</div><div style="font-size:30px;font-weight:800" id="konRec">' + recHtml() + '</div></div></div>' +
       (lobby.resting ? '<div class="glass" style="padding:20px 26px;font-size:22px;border-color:#ff6b86">😴 Online is resting for today. Play Here still works!</div>' : '') +
       '</div>' + foot([btn('#6aa0ff', '✕') + 'Join', btn('#ff3fa4', '○') + 'Back', '▲▼ choose', '◀▶ switch']) + DISC);
@@ -141,6 +141,45 @@
     banner.innerHTML = '⚔ Pick a song for your challenge, then press <b style="color:#ffd75e">PLAY</b> · BACK = cancel'; banner.style.display = '';
   }
   function endPick() { if (banner) banner.style.display = 'none'; }
+
+  // ---------- Spin random: a slot reel that lands on a random singable song (pitch notes), then posts the challenge ----------
+  var spinList = [], SP_H = 150;
+  function tile(x, cls) { return '<div class="kon-tile' + (cls || '') + '">' + art(x[0], 118) + '<div style="min-width:0;flex:1"><div class="t">' + esc(x[1]) + '</div><div class="dim" style="font-size:24px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(x[2]) + '</div></div></div>'; }
+  function showSpin() {
+    if (!spinList.length) { lsend({ type: 'list' }); return toast('Loading songs… try again in a second.'); }
+    S = { v: 'spin', spinning: false, landed: null, last: S.landed || null };
+    var seed = []; for (var i = 0; i < 3; i++) seed.push(spinList[Math.floor(Math.random() * spinList.length)]);
+    paint(LOGO + '<h1>SPIN RANDOM<small>Let the reel pick your challenge song</small></h1>' +
+      '<div class="kon-reelwrap glass" data-f="spin-go" id="konReelWrap"><div class="kon-reel" id="konReel">' + seed.map(function (x) { return tile(x); }).join('') + '</div><div class="kon-reelmark"></div></div>' +
+      '<div id="konSpinBtns" style="position:absolute;left:0;right:0;top:820px;display:flex;gap:28px;justify-content:center"><span class="gold auto" data-f="spin-go" style="font-size:34px;padding:16px 60px">🎰 SPIN</span><span class="pill" data-f="spin-back" style="font-size:28px;padding:14px 40px">◀ Back</span></div>' +
+      foot([btn('#6aa0ff', '✕') + 'Spin', btn('#ff3fa4', '○') + 'Back', '◀▶ choose']) + DISC);
+    var w = st.querySelector('#konReelWrap'); if (w) w.classList.remove('foc');
+  }
+  function spinGo() {
+    if (S.v !== 'spin' || S.spinning) return; S.spinning = true; S.landed = null;
+    var pool = spinList.length > 1 && S.last ? spinList.filter(function (x) { return x[0] !== S.last[0]; }) : spinList;
+    var pick = pool[Math.floor(Math.random() * pool.length)], N = 34, strip = [];
+    for (var i = 0; i < N; i++) strip.push(spinList[Math.floor(Math.random() * spinList.length)]);
+    strip[N - 2] = pick;
+    var reel = st.querySelector('#konReel'), btns = st.querySelector('#konSpinBtns'); if (!reel) return;
+    btns.innerHTML = '<span class="dim" style="font-size:30px;font-weight:700">Spinning…</span>';
+    reel.style.transition = 'none'; reel.style.transform = 'translate3d(0,0,0)';
+    reel.innerHTML = strip.map(function (x, k) { return tile(x, k === N - 2 ? ' win' : ''); }).join('');
+    void reel.offsetHeight;
+    var y = -((N - 2) * SP_H - SP_H);
+    reel.style.transition = 'transform 3.4s cubic-bezier(.12,.72,.18,1)'; reel.style.transform = 'translate3d(0,' + y + 'px,0)';
+    setTimeout(function () {
+      if (S.v !== 'spin') return; S.spinning = false; S.landed = pick; S.last = pick;
+      var wt = reel.querySelector('.kon-tile.win'); if (wt) wt.classList.add('lit');
+      btns.innerHTML = '<span class="gold auto" data-f="spin-use" style="font-size:32px;padding:16px 48px">⚔ Challenge with this song</span><span class="pill" data-f="spin-go" style="font-size:28px;padding:14px 36px;border-color:#ffd75e;color:#ffd75e">🎰 Spin again</span><span class="pill" data-f="spin-back" style="font-size:28px;padding:14px 36px">◀ Back</span>';
+      focus(btns.querySelector('.auto'));
+      try { T().pick(pick[0]); } catch (e) {}   // starts loading the song now
+    }, 3500);
+  }
+  function spinUse() {
+    if (S.v !== 'spin' || !S.landed) return;
+    var id = S.landed[0]; busySend('Posting your challenge\u2026', { type: 'create', song: id });
+  }
 
   // ---------- waiting for an opponent ----------
   function showWaiting() {
@@ -248,7 +287,7 @@
     var l = null; try { l = T().live(); } catch (e) {}
     if (!l) return; M.myLive = l.score; msend({ type: 'score', score: l.score, combo: l.combo, t: l.t }); drawHud(); toPhones();
   }
-  function toPhones() { try { if (window.KBA_TVWS && KBA_TVWS.readyState === 1) KBA_TVWS.send(JSON.stringify({ type: 'online', on: !!(M && (M.state === 'playing' || M.state === 'final')), me: { name: me.name, av: me.av, score: M ? M.myLive : 0 }, opp: { name: M ? M.oppName : '', av: M ? M.oppAv : 0, score: M ? M.oppLive : 0 } })); } catch (e) {} }
+  function toPhones() { try { if (window.KBA_TVWS && KBA_TVWS.readyState === 1) KBA_TVWS.send(JSON.stringify({ type: 'online', match: M ? M.id : '', on: !!(M && (M.state === 'playing' || M.state === 'final')), me: { name: me.name, av: me.av, score: M ? M.myLive : 0 }, opp: { name: M ? M.oppName : '', av: M ? M.oppAv : 0, score: M ? M.oppLive : 0 } })); } catch (e) {} }
 
   // ---------- in-song HUD ----------
   function hudOn() {
@@ -321,6 +360,10 @@
     if (a === 'back') { busyOff(); return goHomeAll(); }
     if (a === 'quick') { if (lobby.resting) return toast('Online is resting for today.'); return busySend('Finding a game\u2026', { type: 'quick' }); }
     if (a === 'pick') { if (S.v === 'waiting') lsend({ type: 'cancel' }); return startPick(); }
+    if (a === 'spin') { if (lobby.resting) return toast('Online is resting for today.'); return showSpin(); }
+    if (a === 'spin-go') return spinGo();
+    if (a === 'spin-use') return spinUse();
+    if (a === 'spin-back') { if (S.spinning) return; return showLobby(); }
     if (a === 'cancel') { lsend({ type: 'cancel' }); return showLobby(); }
     if (a.indexOf('join:') === 0) return busySend('Joining\u2026', { type: 'join', id: a.slice(5) });
     if (a === 'rematch') { if (M && M.oppLeft) return toast(M.oppName + ' already left.'); if (M) { msend({ type: 'rematch' }); var e = st.querySelector('#konRm'); if (e) e.textContent = M.oppRematch ? 'Starting…' : 'Waiting for ' + M.oppName + '…'; } return; }
@@ -336,6 +379,7 @@
   function back() {
     if (S.v === 'needphone' || S.v === 'lobby') return goHomeAll();
     if (S.v === 'waiting') { lsend({ type: 'cancel' }); return showLobby(); }
+    if (S.v === 'spin') { if (S.spinning) return; return showLobby(); }
     if (S.v === 'picking') { endPick(); return showLobby(); }
     if (S.v === 'match' && M) {
       if (M.state === 'playing') { S.confirm = true; paint('<div style="position:absolute;left:560px;top:340px;width:800px;padding:50px;text-align:center" class="glass"><div style="font-size:44px;font-weight:800">Leave this game?</div><div class="dim" style="font-size:26px;margin:16px 0 36px">' + esc(M.oppName) + ' wins if you leave.</div><div style="display:flex;gap:30px;justify-content:center"><span class="gold auto" data-f="leave-no" style="font-size:30px;padding:14px 40px">Keep singing</span><span class="pill" data-f="leave-yes" style="font-size:30px;padding:14px 40px;border-color:#ff6b86;color:#ff6b86">Leave</span></div></div>'); st.querySelector('.kon-bg').style.background = 'rgba(0,0,0,.5)'; return; }

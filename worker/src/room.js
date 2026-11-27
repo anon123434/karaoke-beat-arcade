@@ -92,6 +92,7 @@ export class Room extends DurableObject {
       if (m.type === 'sync' && m.sync && typeof m.sync === 'object') { const s = JSON.stringify(m.sync); if (s.length < 20000) await this.ctx.storage.put('sync', m.sync); return; }
       if (m.type === 'voice') return this.toPhones({ type: 'voice', master: false, vol: 0 });
       if (m.type === 'state') await this.track(ws, m);
+      if (m.type === 'online') await this.onlineSeen(m);
       if (m.type === 'online') { const o = { type: 'online', on: !!m.on, me: m.me, opp: m.opp }; const t = JSON.stringify(o); if (t.length < 600) this.toPhones(o); return; }   // online 1v1 strip on the phones
       if (['clock', 'state', 'feedback', 'guide', 'mode', 'searchres', 'queue', 'qres'].includes(m.type)) {
         if (m.state === 'results' && m.web) { const { web, ...rest } = m; m = rest; }
@@ -99,6 +100,18 @@ export class Room extends DurableObject {
         return this.toPhones(m);
       }
     }
+  }
+  // Which online match this screen is singing in (only written when it changes), so a stand-in round never reaches the boards
+  async onlineSeen(m) {
+    const id = /^[a-z2-9]{12}$/.test(String(m.match || '')) ? m.match : null;
+    if (m.on && id) { if (!this.omOn || !this.om || this.om.id !== id) { this.om = { id, at: Date.now() }; await this.ctx.storage.put('om', this.om); } this.omOn = true; }
+    else if (!m.on) this.omOn = false;
+  }
+  async ghostPlay(play) {
+    const om = this.om || await this.ctx.storage.get('om');
+    if (!om || om.at < play.at - 30e3) return false;
+    const r = await this.env.MATCH.get(this.env.MATCH.idFromName(om.id)).fetch('https://m/isghost').then(x => x.json()).catch(() => ({ g: false }));
+    return !!r.g;
   }
   // Leaderboard: a play starts with state "playing" (+song); its first "results" message is submitted once.
   async track(ws, m) {
@@ -113,6 +126,7 @@ export class Room extends DurableObject {
       const kind = ['sing', 'beat', 'duet'].includes(m.web.kind) ? m.web.kind : 'sing';
       const rows = m.web.rows.slice(0, 5).map((r, i) => ({ name: badName(r.name) ? 'Singer ' + (i + 1) : cleanName(r.name, i + 1), score: Math.max(0, Math.min(100, Math.round(+r.score || 0))) }));
       if (!rows.length) return;   // v13.13: late joiners are not submitted; nothing left to submit
+      if (this.env.MATCH && await this.ghostPlay(play)) return;   // online round vs a stand-in: not a leaderboard result
       const b = this.env.BOARD.get(this.env.BOARD.idFromName('global'));
       const res = await b.fetch('https://b/submit', { method: 'POST', body: JSON.stringify({ song: play.song, kind, rows, room: this.ctx.id.toString().slice(0, 12) }) }).then(r => r.json()).catch(() => null);
       if (res) { this.send(ws, { type: 'web-hs', ok: true, song: play.song, title: song.t, kind, ...res }); this.toPhones({ type: 'web-hs', ok: true, song: play.song, title: song.t, kind, ...res }); }

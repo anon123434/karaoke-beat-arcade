@@ -182,8 +182,8 @@ async function sing(req, env, ctx, url) {
   }
   if (sub === '/api/admin/online') {   // reports + today's match count, same SECRET
     if (!env.SECRET || req.headers.get('x-admin') !== env.SECRET) return json({ error: 'no' }, 403);
-    const [r, l] = await Promise.all([board(env).fetch('https://b/online/reports').then(x => x.json()), env.LOBBY.get(env.LOBBY.idFromName('global')).fetch('https://l/state').then(x => x.json())]);
-    return json({ reports: r.reports, today: l.today, cap: l.cap, open: l.items.length, online: l.online });
+    const [r, l, g] = await Promise.all([board(env).fetch('https://b/online/reports').then(x => x.json()), env.LOBBY.get(env.LOBBY.idFromName('global')).fetch('https://l/state').then(x => x.json()), board(env).fetch('https://b/online/ghost-stats').then(x => x.json())]);
+    return json({ reports: r.reports, today: l.today, cap: l.cap, open: l.items.length, online: l.online, ghosts: { enabled: l.ghosts, matchesToday: l.ghostsToday, ...g } });
   }
   if (sub === '/api/online/record') return board(env).fetch('https://b' + sub + url.search);
   if (sub === '/api/lb/top') {   // one snapshot of every song's top 5, cached at the edge (the panel never fetches per highlight)

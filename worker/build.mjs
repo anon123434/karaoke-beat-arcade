@@ -92,6 +92,24 @@ if (fs.existsSync(path.join(SRC, 'shared/phone-index.js'))) {
   fs.writeFileSync(dst('phone/songs-index.json'), JSON.stringify(PhoneIndex.build(idx, (fs.existsSync(path.join(SONGS, 'library.json')) ? JSON.parse(fs.readFileSync(path.join(SONGS, 'library.json'), 'utf8')) : {}))));
 }
 fs.writeFileSync(path.join(import.meta.dirname, 'src/songs-meta.json'), JSON.stringify(Object.fromEntries(idx.map(s => [s.id, { t: s.title, a: s.artist, d: s.duration }]))));
+// online 1v1 opponent model + Spin random: per-song line timing/weights from the pitch notes (no lyrics, no audio). Songs without notes are not singable.
+{
+  const prof = {};
+  for (const s of idx) {
+    let j; try { j = JSON.parse(fs.readFileSync(path.join(SONGS, s.id, 'song.json'), 'utf8')); } catch (e) { continue; }
+    const notes = (j.notes || []).filter(n => n && n.d > 0 && isFinite(n.t)); if (notes.length < 20) continue;
+    const tot = notes.reduce((a, n) => a + n.d, 0), by = new Map();
+    for (const n of notes) { const k = n.line == null ? Math.floor(n.t / 6) : n.line; const g = by.get(k) || { t: n.t, e: 0, w: 0, n: 0 }; g.t = Math.min(g.t, n.t); g.e = Math.max(g.e, n.t + n.d); g.w += n.d; g.n++; by.set(k, g); }
+    const L = [...by.values()].sort((a, b) => a.t - b.t).map(g => [+g.t.toFixed(2), +g.e.toFixed(2), Math.max(1, Math.round(1000 * g.w / tot)), g.n]);
+    const span = Math.max(1, notes[notes.length - 1].t - notes[0].t), dens = notes.length / span;
+    const m = notes.map(n => n.midi).filter(Number.isFinite), mean = m.reduce((a, b) => a + b, 0) / m.length, sd = Math.sqrt(m.reduce((a, b) => a + (b - mean) ** 2, 0) / m.length);
+    let jumps = 0; for (let i = 1; i < notes.length; i++) jumps += Math.min(12, Math.abs(notes[i].midi - notes[i - 1].midi)); jumps /= notes.length;
+    const df = Math.max(0, Math.min(1, 0.35 * Math.min(1, dens / 4) + 0.35 * Math.min(1, sd / 6) + 0.3 * Math.min(1, jumps / 5)));
+    prof[s.id] = { n: notes.length, df: +df.toFixed(2), L };
+  }
+  fs.writeFileSync(path.join(import.meta.dirname, 'src/song-profiles.json'), JSON.stringify(prof));
+  console.log('song profiles:', Object.keys(prof).length, 'singable of', idx.length);
+}
 const sizes = {}; (function walk(d) { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) walk(p); else if (/\.(mp3|wav)$/.test(e.name)) sizes['/' + path.relative(OUT, p)] = fs.statSync(p).size; } })(OUT);
 fs.writeFileSync(path.join(import.meta.dirname, 'src/asset-sizes.json'), JSON.stringify(sizes));
 let n = 0, big = 0; (function walk(d) { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) walk(p); else { n++; if (fs.statSync(p).size > 25 * 1024 * 1024) big++; } } })(OUT);
