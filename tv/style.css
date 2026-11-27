@@ -937,3 +937,28 @@ body.ptr .hbtn:hover, body.ptr .pm-item:hover, body.ptr .rs-btn:hover, body.ptr 
 #game .gp-combo b { background: none; -webkit-background-clip: border-box; background-clip: border-box; color: var(--pc, #ffd75e); }
 #game .gp-combo i { color: var(--pc, #ffe9a8a0); }
 #game .gp-acc b { color: var(--green); text-shadow: 0 0 18px rgba(89,255,168,.55); }
+
+/* v13.15.2: arcade streak callouts (CSS transform/opacity only; colour = the player's trace colour via --c) */
+.sk-host { position: absolute; left: 560px; top: 112px; width: 760px; height: 92px;   /* the free band between the song bar and the pitch lane */
+  z-index: 12; pointer-events: none; display: none; }
+#game.sing:not(.cards) .sk-host { display: block; }
+.sk-pop { position: absolute; left: 0; right: 0; top: 0; bottom: 0; z-index: 20; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-weight: 900; font-style: italic; white-space: nowrap; will-change: transform, opacity; animation: skPop 1.7s cubic-bezier(.2,.9,.25,1) both; }
+.sk-pop b { display: block; font-size: 50px; line-height: 1; letter-spacing: 2px; color: #fff; text-shadow: 0 0 8px var(--c), 0 0 22px var(--c), 0 0 44px var(--c), 0 3px 0 rgba(0,0,0,.55); }
+.sk-pop small { display: block; margin-top: 2px; font-size: 17px; font-style: normal; font-weight: 800; letter-spacing: 4px; color: var(--c); text-shadow: 0 0 10px #000a; }
+.sk-host .sk-pop b { font-size: 58px; } .sk-host .sk-pop small { font-size: 18px; }
+.sk-pop.in-card { border-radius: inherit; background: linear-gradient(120deg, rgba(18,7,44,.96), rgba(30,10,70,.92)); box-shadow: inset 0 0 0 3px var(--c), 0 0 46px var(--c); }
+.sk-pop.in-card b { font-size: 44px; } #game.cards.pn4 .sk-pop.in-card b { font-size: 34px; } #game.cards.pn4 .sk-pop small { font-size: 14px; letter-spacing: 3px; }
+.sk-pop.lost { animation-name: skLost; animation-duration: 1.5s; }
+.sk-pop.lost b { font-size: 34px; color: #ffb3c4; letter-spacing: 3px; text-shadow: 0 0 14px #ff3f6a, 0 2px 0 rgba(0,0,0,.55); } .sk-pop.in-card.lost b { font-size: 30px; } .sk-pop.lost small { color: #ffd0da; }
+.sk-pop.in-card.lost { box-shadow: inset 0 0 0 3px #ff3f6a88, 0 0 26px #ff3f6a66; }
+.sk-sp { position: absolute; left: 50%; top: 50%; width: 11px; height: 11px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--c); box-shadow: 0 0 12px 3px var(--c), 0 0 0 2px #fff8; opacity: 0; transform: translate(0,0) scale(.2); animation: skSp 1.15s ease-out both; }
+.sk-sp:nth-child(3n) { background: #fff; width: 8px; height: 8px; } .sk-sp:nth-child(4n) { background: #ffd75e; }
+.sk-tier { position: absolute; top: 10px; right: 14px; padding: 1px 12px; border-radius: 999px; background: var(--pc, var(--c, #ffd75e)); color: #10042a; font-style: normal; font-size: 22px; font-weight: 900; letter-spacing: 1px; box-shadow: 0 0 16px var(--pc, var(--c, #ffd75e)); }
+.sk-tier:empty { display: none; }
+.pc .sk-tier { top: -16px; right: 18px; z-index: 8; }
+#game .gp-combo { position: relative; }
+.sk-pulse { animation: skPulse .6s cubic-bezier(.2,.9,.25,1); }
+@keyframes skPop { 0% { opacity: 0; transform: scale(.35); } 10% { opacity: 1; transform: scale(1.4); } 22% { transform: scale(.94); } 32% { transform: scale(1.06); } 42% { transform: scale(1); } 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: translateY(-12px) scale(1.03); } }
+@keyframes skLost { 0% { opacity: 0; transform: translateY(-6px); } 14% { opacity: 1; transform: translateY(0); } 70% { opacity: .9; } 100% { opacity: 0; transform: translateY(12px); } }
+@keyframes skSp { 0% { opacity: 0; transform: translate(0,0) scale(.2); } 14% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1); } }
+@keyframes skPulse { 0% { transform: scale(1); } 28% { transform: scale(1.12); filter: brightness(1.5); } 100% { transform: scale(1); filter: none; } }

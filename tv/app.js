@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var CFG = window.KARAOKE_CONFIG;
-  var BUILD = 'v13.15.1';
+  var BUILD = 'v13.15.2';
   var DEV = window.KaraokeDev = { overlay: true, tiles: true, feedback: true, lyrics: true, hud: true, bg: true };
   var S = window.KaraokeScoring;
   var $ = function (id) { return document.getElementById(id); };
@@ -671,13 +671,14 @@
   var PC = { t: 0, lead: 0, rows: [] };
   function pcHtml(r) {
     var c = slotColor(r.slot), lt = G && G.late && G.late[r.slot];
-    return '<div class="pc' + (r.enter ? ' enter' : '') + '" id="pc' + r.slot + '" style="--c:' + c + ';--cb:' + rgba(c, 0.2) + ';--cg:' + rgba(c, 0.45) + '"><img src="' + avatarFor(r.slot) + '" alt=""><div class="pc-m"><div class="pc-n"><span class="pc-p">P' + r.slot + '</span>' + esc(r.name) + (lt ? '<em class="pc-late">joined late</em>' : '') + '<em class="pc-ic">' + (r.sing ? '\ud83c\udfa4' : '\ud83e\udd41') + '</em></div><b id="pcs' + r.slot + '">0</b><u><s id="pce' + r.slot + '"></s></u></div><i class="pc-crown">\u265b</i></div>';
+    return '<div class="pc' + (r.enter ? ' enter' : '') + '" id="pc' + r.slot + '" style="--c:' + c + ';--cb:' + rgba(c, 0.2) + ';--cg:' + rgba(c, 0.45) + '"><img src="' + avatarFor(r.slot) + '" alt=""><div class="pc-m"><div class="pc-n"><span class="pc-p">P' + r.slot + '</span>' + esc(r.name) + (lt ? '<em class="pc-late">joined late</em>' : '') + '<em class="pc-ic">' + (r.sing ? '\ud83c\udfa4' : '\ud83e\udd41') + '</em></div><b id="pcs' + r.slot + '">0</b><u><s id="pce' + r.slot + '"></s></u></div><i class="pc-crown">\u265b</i><em class="sk-tier" id="pct' + r.slot + '"></em></div>';
   }
   function hudStart(kind) {
     $('gsArt').src = SONG_BASE + song.id + '/art.webp'; $('gsTitle').textContent = song.title; $('gsArtist').textContent = song.artist || '';
     $('gsBar').style.transform = 'scaleX(0)'; $('gsTime').textContent = '0:00 / ' + fmt(song.duration || 0);
     $('gbcN').textContent = '0'; $('gBigCombo').className = 'g-bigcombo'; $('gsgTag').textContent = ''; $('gsgTag').className = 'gsg-tag';
     var sl = G.slots[0] || 1; $('gsgAv').src = avatarFor(sl); $('gsgP').textContent = 'P' + sl; $('gsgP').style.background = slotColor(sl); $('game').style.setProperty('--pc', slotColor(sl));   // v13.15: SCORE / COMBO panels use the same colour as the pitch trace
+    G.sk = {}; var skS = $('skSolo'); if (skS) skS.innerHTML = ''; var gt = $('gpTier'); if (gt) gt.textContent = '';
     G.hudSet = false; if (!soloBeat() && phone && typeof setPhone === 'function') try { setPhone(phone); } catch (e) {}
     var cards = kind === 'duet' || G.multi; $('game').classList.toggle('cards', !!cards); PC.rows = []; PC.lead = 0;
     if (!cards) { $('pCards').innerHTML = ''; renderJoinQr(); return; }
@@ -708,6 +709,50 @@
     if (n < 3) { if (el.className !== 'g-bigcombo') el.className = 'g-bigcombo'; return; }
     $('gbcN').textContent = n; el.className = 'g-bigcombo on' + (n >= 25 ? ' hot' : '') + (n % 2 ? ' p1' : ' p2');
   }
+  // ---------- v13.15.2 arcade streak callouts (visual + a light chime only; scoring is never touched) ----------
+  var SK_MS = [[10, 'NICE!'], [25, 'GREAT!'], [50, 'ON FIRE!'], [75, 'AWESOME!'], [100, 'UNSTOPPABLE!'], [150, 'LEGENDARY!'], [200, 'GODLIKE!'], [300, 'MYTHIC!'], [400, 'IMPOSSIBLE!']], SK_LOST_MIN = 25, SK_SFX = { t: 0 };
+  function skMilestone(a, b) {   // highest milestone m with a < m <= b (a combo that jumped several notes at once still gets one callout)
+    var best = null, i;
+    for (i = 0; i < SK_MS.length; i++) if (SK_MS[i][0] > a && SK_MS[i][0] <= b) best = { n: SK_MS[i][0], text: SK_MS[i][1], idx: i };
+    if (b > 400) { var m = Math.floor(b / 100) * 100; if (m > 400 && m > a) best = { n: m, text: 'INSANE!', idx: SK_MS.length }; }
+    return best;
+  }
+  function skTier(n) { return n >= 300 ? 7 : n >= 200 ? 6 : n >= 100 ? 5 : n >= 50 ? 4 : n >= 25 ? 3 : n >= 10 ? 2 : 1; }   // x1..x7, display only
+  function skSfx(kind, idx) {
+    try {
+      if (localStorage.getItem('karaoke.streakSfx') === 'off') return;
+      var c = audio && audio.ctx, now = performance.now(); if (!c || c.state !== 'running' || now - SK_SFX.t < 350) return; SK_SFX.t = now;
+      var t = c.currentTime, notes = kind === 'lost' ? [[220, 0], [147, 0.14]] : [[523.25 * Math.pow(2, Math.min(idx, 7) * 2 / 12), 0], [785 * Math.pow(2, Math.min(idx, 7) * 2 / 12), 0.09]];
+      notes.forEach(function (nt) {
+        var o = c.createOscillator(), g = c.createGain(), s = t + nt[1];
+        o.type = kind === 'lost' ? 'triangle' : 'sine'; o.frequency.setValueAtTime(nt[0], s);
+        g.gain.setValueAtTime(0.0001, s); g.gain.exponentialRampToValueAtTime(kind === 'lost' ? 0.05 : 0.06, s + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, s + 0.32);
+        o.connect(g); g.connect(c.destination); o.start(s); o.stop(s + 0.36);
+      });
+    } catch (e) {}
+  }
+  function skPop(host, color, n, m, card, lost) {   // host: positioned element (solo callout slot, a player card, or an online duel HUD box); CSS transform/opacity animation only
+    if (!host) return;
+    var old = host.querySelector('.sk-pop'); if (old) old.parentNode.removeChild(old);
+    var el = document.createElement('div'); el.className = 'sk-pop' + (card ? ' in-card' : '') + (lost ? ' lost' : ''); el.style.setProperty('--c', color);
+    el.innerHTML = lost ? '<b>STREAK LOST</b><small>\u00d7' + n + ' notes</small>' : '<b>' + m.text + '</b><small>' + n + ' NOTE STREAK</small>';
+    if (!lost) for (var i = 0; i < 12; i++) { var p = document.createElement('i'), ang = (i / 12) * 6.283 + Math.random() * 0.4, r = 70 + Math.random() * 90; p.className = 'sk-sp'; p.style.cssText = '--dx:' + Math.round(Math.cos(ang) * r * 1.6) + 'px;--dy:' + Math.round(Math.sin(ang) * r * 0.7) + 'px;animation-delay:' + Math.round(Math.random() * 90) + 'ms'; el.appendChild(p); }
+    host.appendChild(el); setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, lost ? 1500 : 1800);
+  }
+  function skPulse(el) { if (!el) return; el.classList.remove('sk-pulse'); void el.offsetWidth; el.classList.add('sk-pulse'); }
+  function skUpdate(sl, sc) {
+    var S = G.sk && (G.sk[sl] || (G.sk[sl] = { last: 0, tier: 1 })); if (!S) return;
+    var n = sc.combo | 0, cards = $('game').classList.contains('cards'), col = slotColor(sl), pc = cards ? $('pc' + sl) : null, host = cards ? pc : $('skSolo');
+    if (n > S.last) {
+      var m = skMilestone(S.last, n);
+      if (m) { skPop(host, col, m.n, m, cards, false); skPulse(cards ? pc : document.querySelector('#game .gp-combo')); skSfx('up', m.idx); }
+    } else if (n < S.last && S.last >= SK_LOST_MIN) { skPop(host, col, S.last, null, cards, true); skSfx('lost'); }
+    S.last = n;
+    var tr = skTier(n); if (tr !== S.tier) {
+      S.tier = tr; var tb = cards ? $('pct' + sl) : $('gpTier'); if (tb) { tb.textContent = tr > 1 ? 'x' + tr : ''; if (tr > 1) skPulse(tb); }
+    }
+  }
+  window.KBA_STREAK = { milestone: skMilestone, tier: skTier, pop: function (host, color, n, m, lost) { skPop(host, color, n, m, true, lost); skSfx(lost ? 'lost' : 'up', m ? m.idx : 0); } };   // online duel HUD (web) uses this for the opponent's streak
   function cyclePlay() { localStorage.setItem('karaoke.play', PLAYS[(PLAYS.indexOf(play()) + 1) % PLAYS.length]); renderPlay(); }
   // L2 / R2 on the song list: cycle the four play kinds (Beat → Duet → Jam → Sing), keeping Easy/Normal/Hard when it applies.
   // △ and the Play button still walk every style including difficulty (cyclePlay).
@@ -1595,7 +1640,7 @@
         if (G.multi) flashPlayer(sl, d.rating); else { showFeedback(d.rating); singerTag(d.rating); if (G.kind === 'sing') singPanels(G.scorers[sl]); }
         wsSend({ type: 'feedback', to: sl, rating: d.rating, saved: !!d.saved, score: sc.liveScore() });
       });
-      if (done.length) updateScore(sl);
+      if (done.length) { updateScore(sl); if (DEV.feedback) skUpdate(sl, sc); }
     });
 
     var heard = t - outLat() / 1000; // lane shows the timeline the singer hears, same as the phone frames

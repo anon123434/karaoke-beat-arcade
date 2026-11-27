@@ -255,7 +255,7 @@
     if (m.type === 'match') { if (m.oppLive) M.oppLive = m.oppLive.score; var o = (m.players || []).filter(function (p) { return p.cid !== cid; })[0], mm = (m.players || []).filter(function (p) { return p.cid === cid; })[0]; if (o && o.av !== M.oppAv) { M.oppAv = o.av; } if (mm) me.av = mm.av; return; }
     if (m.type === 'opp-ready') { M.oppReady = true; return vsStatus(); }
     if (m.type === 'start') { M.state = 'countdown'; M.oppReady = true; vsStatus(); scheduleStart(m.t0); return; }
-    if (m.type === 'opp') { M.oppLive = m.score; return drawHud(); }
+    if (m.type === 'opp') { M.oppLive = m.score; oppStreak(m.combo); return drawHud(); }
     if (m.type === 'opp-gone') { note('📶 ' + M.oppName + '\u2019s connection dropped… waiting 15 s'); return; }
     if (m.type === 'opp-back') { note(''); return; }
     if (m.type === 'opp-forfeit') { M.oppForfeit = true; note(M.oppName + ' left. Finish the song to win!'); return; }
@@ -263,7 +263,7 @@
     if (m.type === 'results') { M.state = 'done'; hudOff(); return showResults(m); }
     if (m.type === 'opp-rematch') { M.oppRematch = true; var e = st.querySelector('#konRm'); if (e) e.textContent = M.oppName + ' wants a rematch!'; return; }
     if (m.type === 'opp-left') { M.oppLeft = true; var r = st.querySelector('#konRm'); if (r) r.textContent = M.oppName + ' left.'; var b = st.querySelector('[data-f="rematch"]'); if (b) b.style.opacity = .4; return; }
-    if (m.type === 'rematch-go') { M.state = 'loading'; M.oppReady = false; M.oppFinal = null; M.oppForfeit = false; M.myLive = 0; M.oppLive = 0; M.rematch = false; M.oppRematch = false; try { T().pick(M.song); } catch (e) {} showVs(); waitLoaded(); return; }
+    if (m.type === 'rematch-go') { M.state = 'loading'; M.oppReady = false; M.oppFinal = null; M.oppForfeit = false; M.myLive = 0; M.oppLive = 0; M.oppCombo = 0; M.rematch = false; M.oppRematch = false; try { T().pick(M.song); } catch (e) {} showVs(); waitLoaded(); return; }
     if (m.type === 'cancel') {
       var why = m.reason === 'load' ? 'The song didn\u2019t load in time.' : m.reason === 'left' ? M.oppName + ' left before the start.' : 'This game ended.';
       var reopen = M.role === 'host' && m.reason === 'left' && M.state !== 'playing', song = M.song;
@@ -322,6 +322,14 @@
     drawHud();
   }
   function hudOff() { hud.style.display = 'none'; window.KBA_ON.active = false; if (M) clearInterval(M.iv); toPhones(); }
+  // v13.15.2: arcade streak callout on the OPPONENT's HUD box (real player or ghost) when their relayed combo crosses a milestone / a 25+ streak breaks; my own callouts come from the TV game HUD. Visual only.
+  function oppStreak(n) {
+    try {
+      n = n | 0; var last = M.oppCombo | 0; M.oppCombo = n; if (!window.KBA_STREAK || !hudSt) return; var host = hudSt.querySelectorAll('.hb')[1]; if (!host) return;
+      if (n > last) { var ms = KBA_STREAK.milestone(last, n); if (ms) KBA_STREAK.pop(host, P2(), n, ms, false); }
+      else if (n < last && last >= 25) KBA_STREAK.pop(host, P2(), last, null, true);
+    } catch (e) {}
+  }
   function drawHud() {
     if (!M || hud.style.display === 'none') return;
     var a = hudSt.querySelector('#konMyS'), b = hudSt.querySelector('#konOpS'); if (!a) return;
