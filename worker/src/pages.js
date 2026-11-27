@@ -9,7 +9,7 @@ button,input{font:inherit}
  .gate-logo{display:block;width:min(86vw,420px);height:auto;margin:0 auto 8px;filter:drop-shadow(0 6px 18px rgba(0,0,0,.45)) drop-shadow(0 0 22px rgba(255,63,164,.35))}
 .muted{color:#cbbcff;opacity:.9}`;
 
-export const GATE_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NOW! Karaoke Beat Arcade</title>
+export const GATE_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1"><title>COOLEST! Karaoke Beat Arcade</title>
 <style>${NEON}
 h1{font-size:clamp(48px,8vw,120px);margin:0 0 .2em}
 p{font-size:clamp(22px,2.6vw,40px);margin:.2em 0 1em}
@@ -19,7 +19,7 @@ p{font-size:clamp(22px,2.6vw,40px);margin:.2em 0 1em}
 #msg{min-height:1.5em;font-size:clamp(22px,2.4vw,36px);color:#ffd0e6;margin-top:.8em}
 .legal{margin:2.4em auto 0;max-width:34em;font-size:clamp(15px,1.7vw,20px);line-height:1.45;color:#c8c2d8;font-weight:400}
 .legal a{color:#e8e4f0;text-decoration:underline}</style></head>
-<body><div class="card"><h1 class="logo"><img class="gate-logo" src="/kba/web/m/logo.webp" alt="NOW! Karaoke Beat Arcade"></h1><p>🔑 Type the secret code</p>
+<body><div class="card"><h1 class="logo"><img class="gate-logo" src="/kba/web/m/logo.webp" alt="COOLEST! Karaoke Beat Arcade"></h1><p>🔑 Type the secret code</p>
 <form class="row" id="f"><input id="code" inputmode="numeric" autocomplete="off" maxlength="6" autofocus aria-label="Secret code"><button class="big" id="go">OK ▶</button></form>
 <div id="msg"></div>
 <p class="legal">This is a private, non-commercial Karaoke Beat Arcade party instance for family and friends. It is not for sale and is not monetized. <a href="/kba/about" id="legal">Full disclaimer</a></p>
@@ -32,7 +32,7 @@ f.onsubmit=function(e){if(e&&e.preventDefault)e.preventDefault();m.textContent='
 fetch('/kba/api/invite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:c.value}),credentials:'same-origin'}).then(function(r){return r.json()}).then(function(j){if(j.ok)location.replace('/kba/');else{m.textContent='🙈 '+(j.msg||'Try again');c.value='';c.focus();}}).catch(function(){m.textContent='🙈 Ask to try again';});return false;};
 </script></body></html>`;
 
-export const MOBILE_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#1a0638"><title>NOW! Karaoke Beat Arcade</title>
+export const MOBILE_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#1a0638"><title>COOLEST! Karaoke Beat Arcade</title>
 <link rel="preload" as="image" href="/kba/web/m/bg.webp"><style>
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#12052e;color:#fff;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
 body{min-height:100svh;background:#12052e url(/kba/web/m/bg.webp) center bottom/cover no-repeat fixed}
@@ -59,7 +59,7 @@ background:linear-gradient(180deg,#fff3b0 0%,#ffd84d 38%,#ffb21e 62%,#f08a00 100
 .legal{margin:22px 16px 0;font-size:13px;line-height:1.4;font-weight:400;color:#ddd6ea;text-shadow:0 1px 6px rgba(0,0,0,.7);max-width:22em}
 .legal a{color:#fff;text-decoration:underline}</style></head>
 <body><main class="w">
-<img class="logo" src="/kba/web/m/logo.webp" width="640" height="284" alt="NOW! Karaoke Beat Arcade">
+<img class="logo" src="/kba/web/m/logo.webp" width="640" height="284" alt="COOLEST! Karaoke Beat Arcade">
 <img class="tv" src="/kba/web/m/tv.webp" width="360" height="318" alt="">
 <h1>Open this on a TV or computer</h1>
 <div class="msg">%%MSG%%</div>
@@ -78,7 +78,7 @@ function fallback(){var t=document.getElementById('sel');t.style.left='0';t.focu
 document.getElementById('copy').onclick=function(){if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(L).then(done,fallback);else fallback();};
 </script></body></html>`;
 
-export const ABOUT_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Disclaimer \u00b7 NOW! Karaoke Beat Arcade</title>
+export const ABOUT_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Disclaimer \u00b7 COOLEST! Karaoke Beat Arcade</title>
 <style>
 html,body{margin:0;background:#111;color:#eee;font:18px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 main{max-width:38em;margin:0 auto;padding:28px 20px 64px}

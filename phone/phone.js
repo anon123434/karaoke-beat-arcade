@@ -177,7 +177,7 @@
 
   function startMic() {
     if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      $('err').textContent = 'Microphone needs HTTPS. Trust the NOW! Karaoke Beat Arcade certificate on this iPhone (see TV), then reopen this page.';
+      $('err').textContent = 'Microphone needs HTTPS. Trust the COOLEST! Karaoke Beat Arcade certificate on this iPhone (see TV), then reopen this page.';
       micState = 'insecure'; sendStatus(); pill($('pMic'), 'Mic blocked', 'bad'); return;
     }
     var AC = window.AudioContext || window.webkitAudioContext;

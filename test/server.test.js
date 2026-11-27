@@ -27,7 +27,7 @@ test('pairing, status, pitch relay, clock relay, CA download, bad code rejected'
 
     // phone page over HTTPS (mkcert cert; test skips CA verification)
     const page = await new Promise((res, rej) => https.get('https://127.0.0.1:18443/phone/?s=testcode', { rejectUnauthorized: false }, r => { let b = ''; r.on('data', c => b += c); r.on('end', () => res(b)); }).on('error', rej));
-    assert.match(page, /NOW! Karaoke Beat Arcade/);
+    assert.match(page, /COOLEST! Karaoke Beat Arcade/);
 
     const bad = new WebSocket('wss://127.0.0.1:18443/ws?role=phone&s=wrong', { rejectUnauthorized: false });
     const code = await new Promise(r => bad.on('close', c => r(c)));

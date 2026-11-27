@@ -54,7 +54,7 @@ img.kba-logo { display: block; height: 72px; width: auto; object-fit: contain; f
 .g-logo .kba-logo { height: 42px; }
 .rs-head .kba-logo { height: 58px; }
 
-/* NOW! Karaoke Beat Arcade wordmark (matches the TV-app rebrand) */
+/* COOLEST! Karaoke Beat Arcade wordmark (matches the TV-app rebrand) */
 .wordmark { display: block; height: 100px; width: auto; object-fit: contain; filter: drop-shadow(0 4px 14px rgba(0,0,0,.55)) drop-shadow(0 0 16px rgba(255,63,164,.4)); }
 #home .brand { left: 36px; top: 16px; }
 #home .wordmark { height: 108px; }

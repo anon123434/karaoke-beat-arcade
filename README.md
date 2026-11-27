@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/logo.png" alt="NOW! Karaoke Beat Arcade" width="360"></p>
+<p align="center"><img src="docs/logo.png" alt="COOLEST! Karaoke Beat Arcade" width="360"></p>
 
 # Karaoke Beat Arcade (KBA)
 

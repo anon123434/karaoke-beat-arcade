@@ -101,7 +101,7 @@
     for (var i = 1; i <= 5; i++) stars += '<i class="' + (i <= c.stars ? 'on' : '') + '">★</i>';
     var art = c.art || (BASE + '/songs/' + c.song + '/art.webp');
     ov.querySelector('#prStage').innerHTML =
-      '<img class="pr-logo" src="' + BASE + '/web/m/logo.webp" alt="NOW! Karaoke Beat Arcade">' +
+      '<img class="pr-logo" src="' + BASE + '/web/m/logo.webp" alt="COOLEST! Karaoke Beat Arcade">' +
       '<div class="pr-player"><img class="pr-av" src="' + avUrl(c) + '" alt=""><div class="pr-name">' + esc(c.name) + '</div></div>' +
       '<div class="pr-song"><img class="pr-art" src="' + art + '" alt=""><div><b>' + esc(c.title || '') + '</b><span>' + esc(c.artist || '') + '</span></div></div>' +
       '<div class="pr-score">' + c.score + '</div>' +
@@ -214,7 +214,7 @@
 
   function go() {
     var gate = document.createElement('div'); gate.className = 'kj';
-    gate.innerHTML = '<img class="kj-logo" src="' + BASE + '/web/m/logo.webp" alt="NOW! Karaoke Beat Arcade"><div class="kj-q">What\u2019s your name?</div>' +
+    gate.innerHTML = '<img class="kj-logo" src="' + BASE + '/web/m/logo.webp" alt="COOLEST! Karaoke Beat Arcade"><div class="kj-q">What\u2019s your name?</div>' +
       '<input id="kjName" maxlength="14" autocomplete="off" autocapitalize="words" enterkeyhint="go" placeholder="Your name">' +
       '<button id="kjFun" class="kj-fun">🎲 Fun name</button><button id="kjGo" class="kj-go">I\u2019m ready! ▶</button><div id="kjMsg" class="kj-msg"></div>';
     document.body.appendChild(gate);

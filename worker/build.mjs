@@ -17,7 +17,7 @@ const must = (file, from, to, all) => {
   if (!s.includes(from)) throw new Error(`patch miss in ${file}: ${from.slice(0, 60)}`);
   s = all ? s.split(from).join(to) : s.replace(from, to); fs.writeFileSync(f, s);
 };
-// patches the TV repo may already contain (v13.9.1+ ships the NOW! logo itself): apply if the old text is still there
+// patches the TV repo may already contain (v13.9.1+ ships the COOLEST! logo itself): apply if the old text is still there
 const maybe = (file, from, to, all) => { const f = dst(file); const s = fs.readFileSync(f, 'utf8'); if (s.includes(from)) must(file, from, to, all); else console.log('already in source, skipped:', file, from.slice(0, 50)); };
 // --- TV app ---
 fs.writeFileSync(dst('tv/config.js'), fs.readFileSync(path.join(import.meta.dirname, 'web/config.js'), 'utf8'));
@@ -25,16 +25,16 @@ must('tv/index.html', '<script src="config.js"></script>', '<script src="config.
 must('tv/index.html', '<script src="$WEBAPIS/webapis/webapis.js"></script>\n', '');
 must('tv/index.html', '<head>', '<head>\n<meta name="robots" content="noindex, nofollow">\n<link rel="stylesheet" href="../web/tv-web.css">');
 must('tv/index.html', 'Scan with the iPhone Camera', 'Scan with your phone camera');
-maybe('tv/index.html', '<title>KaraokeTV</title>', '<title>NOW! Karaoke Beat Arcade</title>');
+maybe('tv/index.html', '<title>KaraokeTV</title>', '<title>COOLEST! Karaoke Beat Arcade</title>');
 maybe('tv/index.html', '<div class="logo"><span class="logo-mic">&#127908;</span>Karaoke<span>TV</span></div>',
-  '<img class="wordmark" src="img/logo.webp" alt="NOW! Karaoke Beat Arcade">', true);
+  '<img class="wordmark" src="img/logo.webp" alt="COOLEST! Karaoke Beat Arcade">', true);
 maybe('tv/index.html', '<div class="g-logo"><span class="logo-mic">&#127908;</span>Karaoke<span>TV</span></div>',
-  '<div class="g-logo"><img class="wordmark" src="img/logo.webp" alt="NOW! Karaoke Beat Arcade"></div>');
+  '<div class="g-logo"><img class="wordmark" src="img/logo.webp" alt="COOLEST! Karaoke Beat Arcade"></div>');
 maybe('tv/index.html', '<section id="calib" class="screen">\n    <div class="cal-box">',
-  '<section id="calib" class="screen">\n    <img class="wordmark" src="img/logo.webp" alt="NOW! Karaoke Beat Arcade">\n    <div class="cal-box">');
+  '<section id="calib" class="screen">\n    <img class="wordmark" src="img/logo.webp" alt="COOLEST! Karaoke Beat Arcade">\n    <div class="cal-box">');
 maybe('tv/index.html', '<section id="sync" class="screen">\n    <div class="sync-box">',
-  '<section id="sync" class="screen">\n    <img class="wordmark" src="img/logo.webp" alt="NOW! Karaoke Beat Arcade">\n    <div class="sync-box">');
-maybe('tv/config.xml', '<name>KaraokeTV</name>', '<name>NOW! Karaoke Beat Arcade</name>');
+  '<section id="sync" class="screen">\n    <img class="wordmark" src="img/logo.webp" alt="COOLEST! Karaoke Beat Arcade">\n    <div class="sync-box">');
+maybe('tv/config.xml', '<name>KaraokeTV</name>', '<name>COOLEST! Karaoke Beat Arcade</name>');
 maybe('tv/index.html', "trust the KaraokeTV certificate, then the mic QR", "scan the QR with your phone camera");
 must('tv/app.js', "'/api/session'", "'/api/session?s=' + encodeURIComponent(window.KTV_ROOM || '')");
 must('tv/app.js', "'/ws?role=tv'", "'/ws?role=tv&s=' + encodeURIComponent(window.KTV_ROOM || '')");
@@ -64,9 +64,9 @@ must('phone/index.html', '<script src="/shared/autotune.js"></script>', `<script
 maybe('phone/index.html', '<script src="/shared/search.js"></script>', `<script src="${BASE}/shared/search.js"></script>`);   // phone Songs tab (v13.12): fuzzy search + songs-tab.js (relative) + songs-index.json (below)
 must('phone/index.html', '<script src="phone.js"></script>', `<script src="${BASE}/web/phone-web.js"></script>`);
 must('phone/index.html', 'url(/tv/img/stage.jpg)', `url(${BASE}/tv/img/stage.jpg)`);
-maybe('phone/index.html', '<title>KaraokeTV Mic</title>', '<title>NOW! Karaoke Beat Arcade</title>');
+maybe('phone/index.html', '<title>KaraokeTV Mic</title>', '<title>COOLEST! Karaoke Beat Arcade</title>');
 maybe('phone/index.html', 'src="/tv/img/logo.webp"', 'src="' + BASE + '/web/m/logo.webp"');
-maybe('phone/index.html', '<h1>Karaoke<span>TV</span> Mic</h1>', '<img class="wordmark" src="' + BASE + '/web/m/logo.webp" alt="NOW! Karaoke Beat Arcade">');
+maybe('phone/index.html', '<h1>Karaoke<span>TV</span> Mic</h1>', '<img class="wordmark" src="' + BASE + '/web/m/logo.webp" alt="COOLEST! Karaoke Beat Arcade">');
 must('phone/index.html', '<head>', '<head>\n<meta name="robots" content="noindex, nofollow">\n<link rel="stylesheet" href="' + BASE + '/web/phone-web.css">');
 must('phone/phone.js', "'/songs/'", `'${BASE}/songs/'`);
 must('phone/phone.js', "'/api/stt'", `'${BASE}/api/stt'`);
@@ -77,7 +77,7 @@ must('phone/phone.js', "'Old QR — rescan the TV'", "'📷 Scan the TV code aga
 must('phone/phone.js', "'Game full (4 players)'", "'😅 4 singers already'");
 must('phone/phone.js', "'Reconnecting…'", "'📶 Hold on…'");
 must('phone/phone.js', "'TV offline', 'bad'", "'📺 TV is off', 'bad'");
-must('phone/phone.js', "'Microphone needs HTTPS. Trust the NOW! Karaoke Beat Arcade certificate on this iPhone (see TV), then reopen this page.'", "'🎤 The mic didn\\u2019t start. Ask to try again.'");
+must('phone/phone.js', "'Microphone needs HTTPS. Trust the COOLEST! Karaoke Beat Arcade certificate on this iPhone (see TV), then reopen this page.'", "'🎤 The mic didn\\u2019t start. Ask to try again.'");
 must('phone/phone.js', "'Microphone permission was denied (' + err.name + '). Settings → Safari → Microphone → Allow, then reload.'", "'🎤 The mic is blocked. Ask a grown-up to tap Allow, then reload.'");
 must('phone/phone.js', "$('mic').textContent = 'Listening';", "$('mic').textContent = '🎤 Sing!';");
 must('phone/index.html', '<button id="mic">Tap to start mic</button>', '<button id="mic">🎤 Tap to sing</button>');

@@ -830,7 +830,7 @@ body.nobg .bg { background: #0a0320; }
 /* multiplayer sing: lane + lyrics leave room for the cards */
 #game.multi.sing .lyrics { top: 690px; }
 
-/* ===================== v13.9 NOW! Karaoke Beat Arcade wordmark ===================== */
+/* ===================== v13.9 COOLEST! Karaoke Beat Arcade wordmark ===================== */
 .wordmark { display: block; height: 100px; width: auto; filter: drop-shadow(0 4px 14px rgba(0,0,0,.55)); }
 #home .brand { left: 36px; top: 10px; }
 #home .wordmark { height: 86px; }
